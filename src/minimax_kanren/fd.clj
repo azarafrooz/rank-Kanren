@@ -12,7 +12,7 @@
 (alias 'core 'clojure.core)
 
 ;; -----------------------------------------------------------------------------
-;; Finite domain protocol types: Copied from https://github.com/clojure/core.logic/blob/master/src/main/clojure/clojure/core/logic/fd.clj
+;; Finite domain protocol types
 
 (defprotocol IInterval
   (-lb [this])
@@ -93,9 +93,9 @@
     (let [s (disj s min)
           c (count s)]
       (cond
-       (= c 1) (first s)
-       (core/> c 1) (FiniteDomain. s (first s) max)
-       :else nil)))
+        (= c 1) (first s)
+        (core/> c 1) (FiniteDomain. s (first s) max)
+        :else nil)))
 
   (-drop-before [_ n]
     (apply domain (drop-while #(core/< % n) s)))
@@ -109,32 +109,32 @@
 
   (-disjoint? [this that]
     (cond
-     (integer? that)
-       (if (s that) false true)
-     (instance? FiniteDomain that)
-       (cond
-         (core/< max (:min that)) true
-         (core/> min (:max that)) true
-         :else (empty? (set/intersection s (:s that))))
-     :else (disjoint?* this that)))
+      (integer? that)
+      (if (s that) false true)
+      (instance? FiniteDomain that)
+      (cond
+        (core/< max (:min that)) true
+        (core/> min (:max that)) true
+        :else (empty? (set/intersection s (:s that))))
+      :else (disjoint?* this that)))
 
   (-intersection [this that]
     (cond
-     (integer? that)
-       (when (-member? this that) that)
-     (instance? FiniteDomain that)
-       (sorted-set->domain (set/intersection s (:s that)))
-     :else
-       (intersection* this that)))
+      (integer? that)
+      (when (-member? this that) that)
+      (instance? FiniteDomain that)
+      (sorted-set->domain (set/intersection s (:s that)))
+      :else
+      (intersection* this that)))
 
   (-difference [this that]
     (cond
-     (integer? that)
-       (sorted-set->domain (disj s that))
-     (instance? FiniteDomain that)
-       (sorted-set->domain (set/difference s (:s that)))
-     :else
-       (difference* this that)))
+      (integer? that)
+      (sorted-set->domain (disj s that))
+      (instance? FiniteDomain that)
+      (sorted-set->domain (set/difference s (:s that)))
+      :else
+      (difference* this that)))
 
   IIntervals
   (-intervals [_] (seq s))
@@ -149,13 +149,13 @@
 (defn sorted-set->domain [s]
   (let [c (count s)]
     (cond
-     (zero? c) nil
-     (= c 1) (first s)
-     :else (FiniteDomain. s (first s) (first (rseq s))))))
+      (zero? c) nil
+      (= c 1) (first s)
+      :else (FiniteDomain. s (first s) (first (rseq s))))))
 
 (defn domain
-  "Construct a domain for assignment to a var. Arguments should 
-   be integers given in sorted order. domains may be more efficient 
+  "Construct a domain for assignment to a var. Arguments should
+   be integers given in sorted order. domains may be more efficient
    than intervals when only a few values are possible."
   [& args]
   (let [args (remove neg? args)]
@@ -197,17 +197,17 @@
          (-disjoint? that# this#)))
      (~'-intersection [this# that#]
        (cond
-        (integer? that#) (when (= this# that#)
-                           this#)
-        (interval? that#) (-intersection that# this#)
-        :else (intersection* this# that#)))
+         (integer? that#) (when (= this# that#)
+                            this#)
+         (interval? that#) (-intersection that# this#)
+         :else (intersection* this# that#)))
      (~'-difference [this# that#]
        (cond
-        (integer? that#) (if (= this# that#)
-                           nil
-                           this#)
-        (interval? that#) (-difference that# this#)
-        :else (difference* this# that#)))
+         (integer? that#) (if (= this# that#)
+                            nil
+                            this#)
+         (interval? that#) (-difference that# this#)
+         :else (difference* this# that#)))
 
      IIntervals
      (~'-intervals [this#]
@@ -255,16 +255,16 @@
 
   (-drop-before [this n]
     (cond
-     (= n ub) n
-     (core/< n lb) this
-     (core/> n ub) nil
-     :else (interval n ub)))
+      (= n ub) n
+      (core/< n lb) this
+      (core/> n ub) nil
+      :else (interval n ub)))
 
   (-keep-before [this n]
     (cond
-     (core/<= n lb) nil
-     (core/> n ub) this
-     :else (interval lb (dec n))))
+      (core/<= n lb) nil
+      (core/> n ub) this
+      :else (interval lb (dec n))))
 
   ISet
   (-member? [this n]
@@ -272,74 +272,74 @@
 
   (-disjoint? [this that]
     (cond
-     (integer? that)
-     (not (-member? this that))
+      (integer? that)
+      (not (-member? this that))
 
-     (interval? that)
-     (let [i this
-           j that
-           [imin imax] (bounds i)
-           [jmin jmax] (bounds j)]
-       (or (core/> imin jmax)
-           (core/< imax jmin)))
+      (interval? that)
+      (let [i this
+            j that
+            [imin imax] (bounds i)
+            [jmin jmax] (bounds j)]
+        (or (core/> imin jmax)
+            (core/< imax jmin)))
 
-     :else (disjoint?* this that)))
+      :else (disjoint?* this that)))
 
   (-intersection [this that]
     (cond
-     (integer? that)
-     (if (-member? this that)
-       that
-       nil)
+      (integer? that)
+      (if (-member? this that)
+        that
+        nil)
 
-     (interval? that)
-     (let [i this j that
-           imin (-lb i) imax (-ub i)
-           jmin (-lb j) jmax (-ub j)]
-       (cond
-        (core/< imax jmin) nil
-        (core/< jmax imin) nil
-        (and (core/<= imin jmin)
-             (core/>= imax jmax)) j
-        (and (core/<= jmin imin)
-             (core/>= jmax imax)) i
-        (and (core/<= imin jmin)
-             (core/<= imax jmax)) (interval jmin imax)
-        (and (core/<= jmin imin)
-             (core/<= jmax imax)) (interval imin jmax)
-        :else (throw (Error. (str "Interval intersection not defined " i " " j)))))
+      (interval? that)
+      (let [i this j that
+            imin (-lb i) imax (-ub i)
+            jmin (-lb j) jmax (-ub j)]
+        (cond
+          (core/< imax jmin) nil
+          (core/< jmax imin) nil
+          (and (core/<= imin jmin)
+               (core/>= imax jmax)) j
+          (and (core/<= jmin imin)
+               (core/>= jmax imax)) i
+          (and (core/<= imin jmin)
+               (core/<= imax jmax)) (interval jmin imax)
+          (and (core/<= jmin imin)
+               (core/<= jmax imax)) (interval imin jmax)
+          :else (throw (Error. (str "Interval intersection not defined " i " " j)))))
 
-     :else (intersection* this that)))
+      :else (intersection* this that)))
 
   (-difference [this that]
     (cond
-     (integer? that)
-     (cond
-      (= lb that) (interval (inc lb) ub)
-      (= ub that) (interval lb (dec ub))
-      :else (if (-member? this that)
-              (multi-interval (interval lb (dec that))
-                              (interval (inc that) ub))
-              this))
-     
-     (interval? that)
-     (let [i this j that
-           imin (-lb i) imax (-ub i)
-           jmin (-lb j) jmax (-ub j)]
-       (cond
-        (core/> jmin imax) i
-        (and (core/<= jmin imin)
-             (core/>= jmax imax)) nil
-        (and (core/< imin jmin)
-             (core/> imax jmax)) (multi-interval (interval imin (dec jmin))
-             (interval (inc jmax) imax))
-        (and (core/< imin jmin)
-             (core/<= jmin imax)) (interval imin (dec jmin))
-        (and (core/> imax jmax)
-             (core/<= jmin imin)) (interval (inc jmax) imax)
-        :else (throw (Error. (str "Interval difference not defined " i " " j)))))
-     
-     :else (difference* this that)))
+      (integer? that)
+      (cond
+        (= lb that) (interval (inc lb) ub)
+        (= ub that) (interval lb (dec ub))
+        :else (if (-member? this that)
+                (multi-interval (interval lb (dec that))
+                                (interval (inc that) ub))
+                this))
+
+      (interval? that)
+      (let [i this j that
+            imin (-lb i) imax (-ub i)
+            jmin (-lb j) jmax (-ub j)]
+        (cond
+          (core/> jmin imax) i
+          (and (core/<= jmin imin)
+               (core/>= jmax imax)) nil
+          (and (core/< imin jmin)
+               (core/> imax jmax)) (multi-interval (interval imin (dec jmin))
+                                                   (interval (inc jmax) imax))
+          (and (core/< imin jmin)
+               (core/<= jmin imax)) (interval imin (dec jmin))
+          (and (core/> imax jmax)
+               (core/<= jmin imin)) (interval (inc jmax) imax)
+          :else (throw (Error. (str "Interval difference not defined " i " " j)))))
+
+      :else (difference* this that)))
 
   IIntervals
   (-intervals [this]
@@ -364,8 +364,8 @@
    (let [lb (if (neg? lb) 0 lb)
          ub (if (neg? ub) 0 ub)]
      (cond
-      (zero? (core/- ub lb)) ub
-      :else (IntervalFD. lb ub)))))
+       (zero? (core/- ub lb)) ub
+       :else (IntervalFD. lb ub)))))
 
 (defn intersection* [is js]
   (loop [is (seq (-intervals is)) js (seq (-intervals js)) r []]
@@ -373,83 +373,83 @@
       (let [i (first is)
             j (first js)]
         (cond
-         (interval-< i j) (recur (next is) js r)
-         (interval-> i j) (recur is (next js) r)
-         :else
-         (let [[imin imax] (bounds i)
-               [jmin jmax] (bounds j)]
-           (cond
-            (core/<= imin jmin)
+          (interval-< i j) (recur (next is) js r)
+          (interval-> i j) (recur is (next js) r)
+          :else
+          (let [[imin imax] (bounds i)
+                [jmin jmax] (bounds j)]
             (cond
-             (core/< imax jmax)
-             (recur (next is)
-                    (cons (interval (inc imax) jmax) (next js))
-                    (conj r (interval jmin imax)))
-             (core/> imax jmax)
-             (recur (cons (interval (inc jmax) imax) (next is))
-                    (next js)
-                    (conj r j))
-             :else
-             (recur (next is) (next js)
-                    (conj r (interval jmin jmax))))
-            (core/> imin jmin)
-            (cond
-             (core/> imax jmax)
-             (recur (cons (interval (inc jmax) imax) (next is))
-                    (next js)
-                    (conj r (interval imin jmax)))
-             (core/< imax jmax)
-             (recur is (cons (interval (inc imax) jmax) (next js))
-                    (conj r i))
-             :else
-             (recur (next is) (next js)
-                    (conj r (interval imin imax))))))))
+              (core/<= imin jmin)
+              (cond
+                (core/< imax jmax)
+                (recur (next is)
+                       (cons (interval (inc imax) jmax) (next js))
+                       (conj r (interval jmin imax)))
+                (core/> imax jmax)
+                (recur (cons (interval (inc jmax) imax) (next is))
+                       (next js)
+                       (conj r j))
+                :else
+                (recur (next is) (next js)
+                       (conj r (interval jmin jmax))))
+              (core/> imin jmin)
+              (cond
+                (core/> imax jmax)
+                (recur (cons (interval (inc jmax) imax) (next is))
+                       (next js)
+                       (conj r (interval imin jmax)))
+                (core/< imax jmax)
+                (recur is (cons (interval (inc imax) jmax) (next js))
+                       (conj r i))
+                :else
+                (recur (next is) (next js)
+                       (conj r (interval imin imax))))))))
       (apply multi-interval r))))
 
 (defn difference* [is js]
-    (loop [is (seq (-intervals is)) js (seq (-intervals js)) r []]
-      (if is
-        (if js
-          (let [i (first is)
-                j (first js)]
-            (cond
-             (interval-< i j) (recur (next is) js (conj r i))
-             (interval-> i j) (recur is (next js) r)
-             :else
-             (let [[imin imax] (bounds i)
-                   [jmin jmax] (bounds j)]
-               (cond
+  (loop [is (seq (-intervals is)) js (seq (-intervals js)) r []]
+    (if is
+      (if js
+        (let [i (first is)
+              j (first js)]
+          (cond
+            (interval-< i j) (recur (next is) js (conj r i))
+            (interval-> i j) (recur is (next js) r)
+            :else
+            (let [[imin imax] (bounds i)
+                  [jmin jmax] (bounds j)]
+              (cond
                 (core/< imin jmin)
                 (cond
-                 (core/< jmax imax)
-                 (recur (cons (interval (inc jmax) imax) (next is))
-                        (next js)
-                        (conj r (interval imin (dec jmin))))
-                 (core/> jmax imax)
-                 (recur (next is)
-                        (cons (interval (inc imax) jmax) (next js))
-                        (conj r (interval imin (dec jmin))))
-                 :else
-                 (recur (next is) (next js)
-                        (conj r (interval imin (dec jmin)))))
+                  (core/< jmax imax)
+                  (recur (cons (interval (inc jmax) imax) (next is))
+                         (next js)
+                         (conj r (interval imin (dec jmin))))
+                  (core/> jmax imax)
+                  (recur (next is)
+                         (cons (interval (inc imax) jmax) (next js))
+                         (conj r (interval imin (dec jmin))))
+                  :else
+                  (recur (next is) (next js)
+                         (conj r (interval imin (dec jmin)))))
                 (core/>= imin jmin)
                 (cond
-                 (core/< imax jmax)
-                 (recur (next is)
-                        (cons (interval (inc imax) jmax) (next js))
-                        r)
-                 (core/> imax jmax)
-                 (recur (cons (interval (inc jmax) imax) (next is))
-                        (next js)
-                        r)
-                 :else (recur (next is) (next js)
-                              r))))))
-          (apply multi-interval (into r is)))
-        (apply multi-interval r))))
+                  (core/< imax jmax)
+                  (recur (next is)
+                         (cons (interval (inc imax) jmax) (next js))
+                         r)
+                  (core/> imax jmax)
+                  (recur (cons (interval (inc jmax) imax) (next is))
+                         (next js)
+                         r)
+                  :else (recur (next is) (next js)
+                               r))))))
+        (apply multi-interval (into r is)))
+      (apply multi-interval r))))
 
 (defn disjoint?* [is js]
   (if (-disjoint? (interval (-lb is) (-ub is))
-                 (interval (-lb js) (-ub js)))
+                  (interval (-lb js) (-ub js)))
     true
     (let [d0 (-intervals is)
           d1 (-intervals js)]
@@ -575,11 +575,11 @@
   ([] nil)
   ([i0] i0)
   ([i0 i1]
-     (let [is [i0 i1]]
-       (MultiIntervalFD. (max 0 (reduce min (map -lb is))) (max 0 (reduce max (map -ub is))) is)))
+   (let [is [i0 i1]]
+     (MultiIntervalFD. (max 0 (reduce min (map -lb is))) (max 0 (reduce max (map -ub is))) is)))
   ([i0 i1 & ir]
-     (let [is (into [] (concat (list i0 i1) ir))]
-       (MultiIntervalFD. (max 0 (reduce min (map -lb is))) (max 0 (reduce max (map -ub is))) is))))
+   (let [is (into [] (concat (list i0 i1) ir))]
+     (MultiIntervalFD. (max 0 (reduce min (map -lb is))) (max 0 (reduce max (map -ub is))) is))))
 
 (defmethod print-method MultiIntervalFD [x ^Writer writer]
   (.write writer (str "<intervals:" (apply pr-str (:is x)) ">")))
@@ -597,6 +597,7 @@
 
 (defn ext-dom-fd
   [a x dom domp]
+  ;(trace x)
   (let [a (add-dom a x ::l/fd dom)]
     (if (not= domp dom)
       ((run-constraints* [x] (:cs a) ::l/fd) a)
@@ -623,9 +624,9 @@
   (fn [a]
     (when dom
       (cond
-       (lvar? x) (resolve-storable-dom a x dom domp)
-       (-member? dom x) a
-       :else nil))))
+        (lvar? x) (resolve-storable-dom a x dom domp)
+        (-member? dom x) a
+        :else nil))))
 
 (declare domc)
 
@@ -651,44 +652,56 @@
         dom (last xs-and-dom)
         domsym (gensym "dom_")]
     `(let [~domsym ~dom]
-      (fresh []
-        ~@(map (fn [x]
-                 `(dom ~x ~domsym))
-               xs)))))
+       (fresh []
+              ~@(map (fn [x]
+                       `(dom ~x ~domsym))
+                     xs)))))
+;
+;(defn map-sum [f]
+;  (fn loop [ls]
+;    (if (empty? ls)
+;      (fn [a] nil)
+;      (fn [a]
+;        (mplus
+;          ((f (first ls)) a)
+;          (-inc (rand-int 4)
+;                ((loop (rest ls)) a)))))))
 
-(defn map-sum [f]
+;
+(defn map-sum [f rank]
   (fn loop [ls]
     (if (empty? ls)
       (fn [a] nil)
       (fn [a]
-        (mplus
-         ((f (first ls)) a)
-         (fn []
-           ((loop (rest ls)) a)))))))
+          (mplus
+            ((f (first ls)) a)
+            (-inc rank
+                  ((loop (rest ls)) a)))))))
+
 
 (defn to-vals [dom]
   (letfn [(to-vals* [is]
             (when is
               (let [i (first is)]
                 (lazy-seq
-                 (cons (-lb i)
-                       (if-let [ni (-drop-one i)]
-                         (to-vals* (cons ni (next is)))
-                         (to-vals* (next is))))))))]
+                  (cons (-lb i)
+                        (if-let [ni (-drop-one i)]
+                          (to-vals* (cons ni (next is)))
+                          (to-vals* (next is))))))))]
     (to-vals* (seq (-intervals dom)))))
 
-(extend-protocol IForceAnswerTerm
+(extend-protocol IForceRankAnswerTerm
   FiniteDomain
-  (-force-ans [v x]
-    ((map-sum (fn [n] (ext-run-csg x n))) (to-vals v)))
+  (-force-rank-ans [v x rank]
+    ((map-sum (fn [n] (ext-run-csg x n)) rank) (to-vals v)))
 
   IntervalFD
-  (-force-ans [v x]
-    ((map-sum (fn [n] (ext-run-csg x n))) (to-vals v)))
+  (-force-rank-ans [v x rank]
+    ((map-sum (fn [n] (ext-run-csg x n)) rank) (to-vals v)))
 
   MultiIntervalFD
-  (-force-ans [v x]
-    ((map-sum (fn [n] (ext-run-csg x n))) (to-vals v))))
+  (-force-rank-ans [v x rank]
+    ((map-sum (fn [n] (ext-run-csg x n)) rank) (to-vals v))))
 
 (defn -domc [x]
   (reify
@@ -725,21 +738,21 @@
     IConstraintStep
     (-step [this s]
       (let-dom s [u du v dv]
-        (reify
-          clojure.lang.IFn
-          (invoke [_ s]
-            (let [i (-intersection du dv)]
-              ((composeg
-                 (process-dom u i du)
-                 (process-dom v i dv)) s)))
-          IEntailed
-          (-entailed? [_]
-            (and (singleton-dom? du)
-                 (singleton-dom? dv)
-                 (= du dv)))
-          IRunnable
-          (-runnable? [_]
-            (and du dv)))))
+               (reify
+                 clojure.lang.IFn
+                 (invoke [_ s]
+                   (let [i (-intersection du dv)]
+                     ((composeg
+                        (process-dom u i du)
+                        (process-dom v i dv)) s)))
+                 IEntailed
+                 (-entailed? [_]
+                   (and (singleton-dom? du)
+                        (singleton-dom? dv)
+                        (= du dv)))
+                 IRunnable
+                 (-runnable? [_]
+                   (and du dv)))))
     IConstraintOp
     (-rator [_] `==)
     (-rands [_] [u v])
@@ -754,35 +767,35 @@
   (cgoal (==c u v)))
 
 (defn !=c [u v]
-  (reify 
+  (reify
     IEnforceableConstraint
     IConstraintStep
     (-step [this s]
       (let-dom s [u du v dv]
-        (let [su? (singleton-dom? du)
-              sv? (singleton-dom? dv)]
-          (reify
-            clojure.lang.IFn
-            (invoke [_ s]
-              (cond
-                (and su? sv? (= du dv)) nil
-                (-disjoint? du dv) s
-                su? (when-let [vdiff (-difference dv du)]
-                      ((process-dom v vdiff dv) s))
-                :else (when-let [udiff (-difference du dv)]
-                        ((process-dom u udiff du) s))))
-            IEntailed
-            (-entailed? [_]
-              (and du dv (-disjoint? du dv)))
-            IRunnable
-            (-runnable? [_]
-              (and du dv (or su? sv?)))))))
+               (let [su? (singleton-dom? du)
+                     sv? (singleton-dom? dv)]
+                 (reify
+                   clojure.lang.IFn
+                   (invoke [_ s]
+                     (cond
+                       (and su? sv? (= du dv)) nil
+                       (-disjoint? du dv) s
+                       su? (when-let [vdiff (-difference dv du)]
+                             ((process-dom v vdiff dv) s))
+                       :else (when-let [udiff (-difference du dv)]
+                               ((process-dom u udiff du) s))))
+                   IEntailed
+                   (-entailed? [_]
+                     (and du dv (-disjoint? du dv)))
+                   IRunnable
+                   (-runnable? [_]
+                     (and du dv (or su? sv?)))))))
     IConstraintOp
     (-rator [_] `!=)
     (-rands [_] [u v])
     IConstraintWatchedStores
     (-watched-stores [this]
-      #{::l/subst ::l/fd}))) 
+      #{::l/subst ::l/fd})))
 
 (defn !=
   "A finite domain constraint. u and v must not be equal. u and v
@@ -791,25 +804,25 @@
   (cgoal (!=c u v)))
 
 (defn <=c [u v]
-  (reify 
+  (reify
     IEnforceableConstraint
     IConstraintStep
     (-step [this s]
       (let-dom s [u du v dv]
-        (reify
-          clojure.lang.IFn
-          (invoke [_ s]
-            (let [umin (-lb du)
-                  vmax (-ub dv)]
-              ((composeg*
-                 (process-dom u (-keep-before du (inc vmax)) du)
-                 (process-dom v (-drop-before dv umin) dv)) s)))
-          IEntailed
-          (-entailed? [_]
-            (and du dv (interval-<= du dv)))
-          IRunnable
-          (-runnable? [_]
-            (and du dv)))))
+               (reify
+                 clojure.lang.IFn
+                 (invoke [_ s]
+                   (let [umin (-lb du)
+                         vmax (-ub dv)]
+                     ((composeg*
+                        (process-dom u (-keep-before du (inc vmax)) du)
+                        (process-dom v (-drop-before dv umin) dv)) s)))
+                 IEntailed
+                 (-entailed? [_]
+                   (and du dv (interval-<= du dv)))
+                 IRunnable
+                 (-runnable? [_]
+                   (and du dv)))))
     IConstraintOp
     (-rator [_] `<=)
     (-rands [_] [u v])
@@ -828,8 +841,8 @@
    must eventually be given domains if vars."
   [u v]
   (all
-   (<= u v)
-   (!= u v)))
+    (<= u v)
+    (!= u v)))
 
 (defn >
   "A finite domain constraint. u must be greater than v. u and v
@@ -848,49 +861,49 @@
 ;; away from
 
 (defn +c [u v w]
-  (reify 
+  (reify
     IEnforceableConstraint
     IConstraintStep
     (-step [this s]
       (let-dom s [u du v dv w dw]
-        (reify
-          clojure.lang.IFn
-          (invoke [_ s]
-            (let [[wmin wmax] (if dw
-                                (bounds dw)
-                                [(core/+ (-lb du) (-lb dv)) (core/+ (-ub du) (-ub dv))])
-                  [umin umax] (if du
-                                (bounds du)
-                                [(core/- (-lb dw) (-ub dv)) (core/- (-ub dw) (-lb dv))])
-                  [vmin vmax] (if dv
-                                (bounds dv)
-                                [(core/- (-lb dw) (-ub du)) (core/- (-ub dw) (-lb du))])
-                  wi (interval (core/+ umin vmin) (core/+ umax vmax))
-                  ui (interval (core/- wmin vmax) (core/- wmax vmin))
-                  vi (interval (core/- wmin umax) (core/- wmax umin))]
-              (when-let [wi (if (and wi dw) (-intersection wi dw) wi)]
-                (when-let [ui (if (and ui du) (-intersection ui du) ui)]
-                  (when-let [vi (if (and vi dv) (-intersection vi dv) vi)]
-                    (when (or (not (every? singleton-dom? [wi ui vi]))
-                              (core/= (core/+ ui vi) wi))
-                      ((composeg*
-                         (process-dom w wi dw)
-                         (process-dom u ui du)
-                         (process-dom v vi dv))
-                        s)))))))
-          IEntailed
-          (-entailed? [_]
-            (and (singleton-dom? du)
-                 (singleton-dom? dv)
-                 (singleton-dom? dw)
-                 (= (core/+ du dv) dw)))
-          IRunnable
-          (-runnable? [_]
-            (cond
-              du (or dv dw)
-              dv (or du dw)
-              dw (or du dv)
-              :else false)))))
+               (reify
+                 clojure.lang.IFn
+                 (invoke [_ s]
+                   (let [[wmin wmax] (if dw
+                                       (bounds dw)
+                                       [(core/+ (-lb du) (-lb dv)) (core/+ (-ub du) (-ub dv))])
+                         [umin umax] (if du
+                                       (bounds du)
+                                       [(core/- (-lb dw) (-ub dv)) (core/- (-ub dw) (-lb dv))])
+                         [vmin vmax] (if dv
+                                       (bounds dv)
+                                       [(core/- (-lb dw) (-ub du)) (core/- (-ub dw) (-lb du))])
+                         wi (interval (core/+ umin vmin) (core/+ umax vmax))
+                         ui (interval (core/- wmin vmax) (core/- wmax vmin))
+                         vi (interval (core/- wmin umax) (core/- wmax umin))]
+                     (when-let [wi (if (and wi dw) (-intersection wi dw) wi)]
+                       (when-let [ui (if (and ui du) (-intersection ui du) ui)]
+                         (when-let [vi (if (and vi dv) (-intersection vi dv) vi)]
+                           (when (or (not (every? singleton-dom? [wi ui vi]))
+                                     (core/= (core/+ ui vi) wi))
+                             ((composeg*
+                                (process-dom w wi dw)
+                                (process-dom u ui du)
+                                (process-dom v vi dv))
+                               s)))))))
+                 IEntailed
+                 (-entailed? [_]
+                   (and (singleton-dom? du)
+                        (singleton-dom? dv)
+                        (singleton-dom? dw)
+                        (= (core/+ du dv) dw)))
+                 IRunnable
+                 (-runnable? [_]
+                   (cond
+                     du (or dv dw)
+                     dv (or du dw)
+                     dw (or du dv)
+                     :else false)))))
     IConstraintOp
     (-rator [_] `+)
     (-rands [_] [u v w])
@@ -921,62 +934,62 @@
                            (inc q)
                            q)
                   :upper q))))]
-   (reify
-     IEnforceableConstraint
-     IConstraintStep
-     (-step [this s]
-       (let-dom s [u du v dv w dw]
-         (reify
-           clojure.lang.IFn
-           (invoke [_ s]
-             (let [[wmin wmax] (if dw
-                                 (bounds dw)
-                                 [(core/* (-lb du) (-lb dv)) (core/* (-ub du) (-ub dv))])
-                   [umin umax] (if du
-                                 (bounds du)
-                                 [(safe-div (-ub dv) (-lb dw) (-lb dw) :lower)
-                                  (safe-div (-lb dv) (-lb dw) (-ub dw) :upper)])
-                   [vmin vmax] (if dv
-                                 (bounds dv)
-                                 [(safe-div (-ub du) (-lb dw) (-lb dw) :lower)
-                                  (safe-div (-lb du) (-lb dw) (-ub dw) :upper)])
-                   wi (interval (core/* umin vmin) (core/* umax vmax))
-                   ui (interval (safe-div vmax umin wmin :lower)
-                                (safe-div vmin umax wmax :upper))
-                   vi (interval (safe-div umax vmin wmin :lower)
-                                (safe-div umin vmax wmax :upper))]
-               (when-let [wi (if (and wi dw) (-intersection wi dw) wi)]
-                 (when-let [ui (if (and ui du) (-intersection ui du) ui)]
-                   (when-let [vi (if (and vi dv) (-intersection vi dv) vi)]
-                     (when (or (not (every? singleton-dom? [wi ui vi]))
-                               (core/= (core/* ui vi) wi))
-                       ((composeg*
-                          (process-dom w wi dw)
-                          (process-dom u ui du)
-                          (process-dom v vi dv)) s)))))))
-           IEntailed
-           (-entailed? [_]
-             (and (singleton-dom? du)
-                  (singleton-dom? dv)
-                  (singleton-dom? dw)
-                  (= (core/* du dv) dw)))
-           IRunnable
-           (-runnable? [_]
-             (cond
-               du (or dv dw)
-               dv (or du dw)
-               dw (or du dv)
-               :else false)))))
-     IConstraintOp
-     (-rator [_] `*)
-     (-rands [_] [u v w])
-     IConstraintWatchedStores
-     (-watched-stores [this]
-       #{::l/subst ::l/fd}))))
+    (reify
+      IEnforceableConstraint
+      IConstraintStep
+      (-step [this s]
+        (let-dom s [u du v dv w dw]
+                 (reify
+                   clojure.lang.IFn
+                   (invoke [_ s]
+                     (let [[wmin wmax] (if dw
+                                         (bounds dw)
+                                         [(core/* (-lb du) (-lb dv)) (core/* (-ub du) (-ub dv))])
+                           [umin umax] (if du
+                                         (bounds du)
+                                         [(safe-div (-ub dv) (-lb dw) (-lb dw) :lower)
+                                          (safe-div (-lb dv) (-lb dw) (-ub dw) :upper)])
+                           [vmin vmax] (if dv
+                                         (bounds dv)
+                                         [(safe-div (-ub du) (-lb dw) (-lb dw) :lower)
+                                          (safe-div (-lb du) (-lb dw) (-ub dw) :upper)])
+                           wi (interval (core/* umin vmin) (core/* umax vmax))
+                           ui (interval (safe-div vmax umin wmin :lower)
+                                        (safe-div vmin umax wmax :upper))
+                           vi (interval (safe-div umax vmin wmin :lower)
+                                        (safe-div umin vmax wmax :upper))]
+                       (when-let [wi (if (and wi dw) (-intersection wi dw) wi)]
+                         (when-let [ui (if (and ui du) (-intersection ui du) ui)]
+                           (when-let [vi (if (and vi dv) (-intersection vi dv) vi)]
+                             (when (or (not (every? singleton-dom? [wi ui vi]))
+                                       (core/= (core/* ui vi) wi))
+                               ((composeg*
+                                  (process-dom w wi dw)
+                                  (process-dom u ui du)
+                                  (process-dom v vi dv)) s)))))))
+                   IEntailed
+                   (-entailed? [_]
+                     (and (singleton-dom? du)
+                          (singleton-dom? dv)
+                          (singleton-dom? dw)
+                          (= (core/* du dv) dw)))
+                   IRunnable
+                   (-runnable? [_]
+                     (cond
+                       du (or dv dw)
+                       dv (or du dw)
+                       dw (or du dv)
+                       :else false)))))
+      IConstraintOp
+      (-rator [_] `*)
+      (-rands [_] [u v w])
+      IConstraintWatchedStores
+      (-watched-stores [this]
+        #{::l/subst ::l/fd}))))
 
 (defn *
   "A finite domain constraint for multiplication and
-   thus division. x, y & product must be eventually be given 
+   thus division. x, y & product must be eventually be given
    domains if vars."
   [x y product]
   (cgoal (*c x y product)))
@@ -987,10 +1000,10 @@
 (defn -distinctc
   "The real *individual* distinct constraint. x is a var that now is bound to
    a single value. y* were the non-singleton bound vars that existed at the
-   construction of the constraint. n* is the set of singleton domain values 
-   that existed at the construction of the constraint. We use categorize to 
+   construction of the constraint. n* is the set of singleton domain values
+   that existed at the construction of the constraint. We use categorize to
    determine the current non-singleton bound vars and singleton vlaues. if x
-   is in n* or the new singletons we have failed. If not we simply remove 
+   is in n* or the new singletons we have failed. If not we simply remove
    the value of x from the remaining non-singleton domains bound to vars."
   [x y* n*]
   (reify
@@ -1035,18 +1048,19 @@
     (loop [f (first ls) ls (next ls)]
       (if ls
         (let [s (first ls)]
-         (if (pred f s)
-           (recur s (next ls))
-           false))
+          (if (pred f s)
+            (recur s (next ls))
+            false))
         true))))
 
 (defn distinctc
   "The real distinct constraint. v* can be seq of logic vars and
-   values or it can be a logic var itself. This constraint does not 
+   values or it can be a logic var itself. This constraint does not
    run until v* has become ground. When it has become ground we group
-   v* into a set of logic vars and a sorted set of known singleton 
+   v* into a set of logic vars and a sorted set of known singleton
    values. We then construct the individual constraint for each var."
   [v*]
+  ;(trace v*)
   (reify
     IEnforceableConstraint
     IConstraintStep
@@ -1059,7 +1073,7 @@
                   n* (sort core/< n*)]
               (when (list-sorted? core/< n*)
                 (let [x* (into #{} x*)
-                       n* (into (sorted-set) n*)]
+                      n* (into (sorted-set) n*)]
                   (loop [xs (seq x*) s s]
                     (if xs
                       (let [x (first xs)]
@@ -1076,78 +1090,79 @@
     (-watched-stores [this] #{::l/subst})))
 
 (defn distinct
-  "A finite domain constraint that will guarantee that 
-   all vars that occur in v* will be unified with unique 
+  "A finite domain constraint that will guarantee that
+   all vars that occur in v* will be unified with unique
    values. v* need not be ground. Any vars in v* should
    eventually be given a domain."
   [v*]
+
   (cgoal (distinctc v*)))
 
 (defne bounded-listo
-  "Ensure that the list l never grows beyond bound n.
-   n must have been assigned a domain."
-  [l n]
-  ([() _] (<= 0 n))
-  ([[h . t] n]
-     (fresh [m]
-       (in m (interval 0 Integer/MAX_VALUE))
-       (+ m 1 n)
-       (bounded-listo t m))))
+       "Ensure that the list l never grows beyond bound n.
+        n must have been assigned a domain."
+       [l n]
+       ([() _] (<= 0 n))
+       ([[h . t] n]
+         (fresh [m]
+                (in m (interval 0 Integer/MAX_VALUE))
+                (+ m 1 n)
+                (bounded-listo t m))))
 
 ;; -----------------------------------------------------------------------------
 ;; FD Equation Sugar
 
 (def binops->fd
-  '{+  clojure.core.logic.fd/+
-    -  clojure.core.logic.fd/-
-    *  clojure.core.logic.fd/*
-    /  clojure.core.logic.fd/quot
-    =  clojure.core.logic.fd/==
-    != clojure.core.logic.fd/!=
-    <= clojure.core.logic.fd/<=
-    <  clojure.core.logic.fd/<
-    >= clojure.core.logic.fd/>=
-    >  clojure.core.logic.fd/>})
+  '{+  minimax-kanren.fd/+
+    -  minimax-kanren.fd/-
+    *  minimax-kanren.fd/*
+    /  minimax-kanren.fd/quot
+    =  minimax-kanren.fd/==
+    != minimax-kanren.fd/!=
+    <= minimax-kanren.fd/<=
+    <  minimax-kanren.fd/<
+    >= minimax-kanren.fd/>=
+    >  minimax-kanren.fd/>})
 
 (def binops (set (keys binops->fd)))
 
 (defn expand [form]
   (if (seq? form)
     (let [[op & args] form]
-     (if (and (binops op) (core/> (count args) 2))
-       (list op (expand (first args))
-             (expand (cons op (rest args))))
-       (cons op (map expand args))))
+      (if (and (binops op) (core/> (count args) 2))
+        (list op (expand (first args))
+              (expand (cons op (rest args))))
+        (cons op (map expand args))))
     form))
 
 (defn eq*
   ([form vars] (eq* form vars nil))
   ([form vars out]
-     (if (seq? form)
-       (let [[op r1 r2] form
-             [outl outlv?] (if (seq? r1)
-                             (let [s (gensym)]
-                               (swap! vars conj s)
-                               [s true])
-                             [r1 false])
-             [outr outrv?] (if (seq? r2)
-                             (let [s (gensym)]
-                               (swap! vars conj s)
-                               [s true])
-                             [r2 false])
-             op (binops->fd op)]
-         (cons (if out
-                 (list op outl outr out)
-                 (list op outl outr))
-               (concat (when (seq? r1)
-                         (eq* r1 vars (when outlv? outl)))
-                       (when (seq? r2)
-                         (eq* r2 vars (when outrv? outr))))))
-       form)))
+   (if (seq? form)
+     (let [[op r1 r2] form
+           [outl outlv?] (if (seq? r1)
+                           (let [s (gensym)]
+                             (swap! vars conj s)
+                             [s true])
+                           [r1 false])
+           [outr outrv?] (if (seq? r2)
+                           (let [s (gensym)]
+                             (swap! vars conj s)
+                             [s true])
+                           [r2 false])
+           op (binops->fd op)]
+       (cons (if out
+               (list op outl outr out)
+               (list op outl outr))
+             (concat (when (seq? r1)
+                       (eq* r1 vars (when outlv? outl)))
+                     (when (seq? r2)
+                       (eq* r2 vars (when outrv? outr))))))
+     form)))
 
 (defn ->fd [vars exprs]
   `(fresh [~@vars]
-     ~@(reverse exprs)))
+          ~@(reverse exprs)))
 
 (defn eq-form [form]
   (let [vars (atom [])
@@ -1156,4 +1171,9 @@
 
 (defmacro eq [& forms]
   `(all
-    ~@(map eq-form forms)))
+     ~@(map eq-form forms)))
+
+
+;(trace-ns *ns*)
+;(trace-vars map-sum)
+

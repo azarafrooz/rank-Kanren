@@ -24,141 +24,140 @@
 
 
 
-;(defn example []
-;  (run* [q]
-;        ;; Create some new logic vars (lvars) for us to use in our rules
-;        (fresh [a0 a1 a2  ;; Top row
-;                b0 b1 b2  ;; Middle row
-;                c0 c1 c2] ;; Bottom row
-;
-;               ;; Unify q with our lvars in the output format we want
-;               (== q [[a0 a1 a2]
-;                      [b0 b1 b2]
-;                      [c0 c1 c2]])
-;
-;               ;; State that every one of our lvars should be in the range 1-9
-;               ;(everyg #(fd/in % (fd/domain 1 2 3 4 5 6 7 8 9)) [a0 a1 a2 b0 b1 b2 c0 c1 c2])
-;               (fd/in a0 a1 a2 b0 b1 b2 c0 c1 c2 (fd/interval 1 9))
-;               ;(fd/in [a0 a1 a2 b0 b1 b2 c0 c1 c2] (fd/domain 1 2 3 4 5 6 7 8 9))
-;               ;; State that each of our lvars should be unique
-;               ;(everyg fd/distinct [a0 a1 a2 b0 b1 b2 c0 c1 c2])
-;               (fd/distinct [a0 a1 a2 b0 b1 b2 c0 c1 c2])
-;
-;               ; fd/eq is just a helper to allow us to use standard Clojure
-;               ;; operators like + instead of fd/+
-;
-;               (fd/eq (= (- (* a0 a1) a2) 22))
-;               ;(fd/eq (= (- (* b0 b1) b2) -1))
-;               (fd/eq (= (* (+ c0 c1) c2) 72))
-;               (fd/eq (= (* (+ a0 b0) c0) 25))
-;               ;(fd/eq (= (- (- a1 b1) c1) -4))
-;               (fd/eq (= (+ (* a2 b2) c2) 25))
-;               (fd/eq (= a0 4)))))
+(defn example []
+  (run* [q]
+        ;; Create some new logic vars (lvars) for us to use in our rules
+        (fresh [a0 a1 a2  ;; Top row
+                b0 b1 b2  ;; Middle row
+                c0 c1 c2] ;; Bottom row
+
+               ;; Unify q with our lvars in the output format we want
+               (== q [[a0 a1 a2]
+                      [b0 b1 b2]
+                      [c0 c1 c2]])
+
+               ;; State that every one of our lvars should be in the range 1-9
+               ;(everyg #(fd/in % (fd/domain 1 2 3 4 5 6 7 8 9)) [a0 a1 a2 b0 b1 b2 c0 c1 c2])
+               (fd/in a0 a1 a2 b0 b1 b2 c0 c1 c2 (fd/interval 1 9))
+               ;(fd/in [a0 a1 a2 b0 b1 b2 c0 c1 c2] (fd/domain 1 2 3 4 5 6 7 8 9))
+               ;; State that each of our lvars should be unique
+               ;(everyg fd/distinct [a0 a1 a2 b0 b1 b2 c0 c1 c2])
+               (fd/distinct [a0 a1 a2 b0 b1 b2 c0 c1 c2])
+
+               ; fd/eq is just a helper to allow us to use standard Clojure
+               ;; operators like + instead of fd/+
+
+               (fd/eq (= (- (* a0 a1) a2) 22))
+               ;(fd/eq (= (- (* b0 b1) b2) -1))
+               (fd/eq (= (* (+ c0 c1) c2) 72))
+               ;(fd/eq (= (* (+ c0 c1) c2) 72))
+               (fd/eq (= (* (+ a0 b0) c0) 25))
+               ;(fd/eq (= (- (- a1 b1) c1) -4))
+               (fd/eq (= (+ (* a2 b2) c2) 25))
+               (fd/eq (= a0 4)))))
 
 
-;(defn example2 []
-;  (let [vars (repeatedly 9 lvar)
-;        rank-vals (shuffle (range 0 (count vars)))
-;        rank-vals (repeat (count vars) 0)
-;        crank (zipmap vars rank-vals)
-;        [a0 a1 a2  ;; Top row
-;         b0 b1 b2  ;; Middle row
-;         c0 c1 c2] vars]
-;    (run-crank 1 crank [q]
-;               ;; Create some new logic vars (lvars) for us to use in our rules
-;                      ;; Unify q with our lvars in the output format we want
-;                      (== q [[a0 a1 a2]
-;                             [b0 b1 b2]
-;                             [c0 c1 c2]])
-;                      ;; State that every one of our lvars should be in the range 1-9
-;                      ;(everyg #(fd/in % (fd/domain 1 2 3 4 5 6 7 8 9)) [a0 a1 a2 b0 b1 b2 c0 c1 c2])
-;                     ;(fd/in a0 a1 a2 b0 b1 b2 c0 c1 c2 (fd/interval 1 9))
-;                      (everyg #(fd/in % (fd/domain 1 2 3 4 5 6 7 8 9)) vars)
-;                      ;(fd/in [a0 a1 a2 b0 b1 b2 c0 c1 c2] (fd/domain 1 2 3 4 5 6 7 8 9))
-;                      ;; State that each of our lvars should be unique
-;                      ;(everyg fd/distinct [a0 a1 a2 b0 b1 b2 c0 c1 c2])
-;                      (fd/distinct [a0 a1 a2 b0 b1 b2 c0 c1 c2])
-;
-;                      ; fd/eq is just a helper to allow us to use standard Clojure
-;                      ;; operators like + instead of fd/+
-;                      (fd/eq
-;                        ;; Horizontal conditions for the puzzle
-;                        ;(= (- (* a0 a1) a2) 22)
-;                        ;(= (- (* b0 b1) b2) -1)
-;                        (= (* (+ c0 c1) c2) 72)
-;                        ;; Vertical conditions for the puzzle
-;                        (= (* (+ a0 b0) c0) 25)
-;                        ;(= (- (- a1 b1) c1) -4)
-;                        ;(= (+ (* a2 b2) c2) 25)
-;                         ;; And finally, in the puzzle we are told that the top left
-;                        ;; number (a0) is 4.
-;                        (= a0 4)))))
-;
+(defn example2 []
+  (let [vars (repeatedly 9 lvar)
+        rank-vals (shuffle (range 0 (count vars)))
+        rank-vals (repeat (count vars) 0)
+        crank (zipmap vars rank-vals)
+        [a0 a1 a2  ;; Top row
+         b0 b1 b2  ;; Middle row
+         c0 c1 c2] vars]
+    (run-crank 1 crank [q]
+               ;; Create some new logic vars (lvars) for us to use in our rules
+                      ;; Unify q with our lvars in the output format we want
+                      (== q [[a0 a1 a2]
+                             [b0 b1 b2]
+                             [c0 c1 c2]])
+                      ;; State that every one of our lvars should be in the range 1-9
+                      ;(everyg #(fd/in % (fd/domain 1 2 3 4 5 6 7 8 9)) [a0 a1 a2 b0 b1 b2 c0 c1 c2])
+                     ;(fd/in a0 a1 a2 b0 b1 b2 c0 c1 c2 (fd/interval 1 9))
+                      (everyg #(fd/in % (fd/domain 1 2 3 4 5 6 7 8 9)) vars)
+                      ;(fd/in [a0 a1 a2 b0 b1 b2 c0 c1 c2] (fd/domain 1 2 3 4 5 6 7 8 9))
+                      ;; State that each of our lvars should be unique
+                      ;(everyg fd/distinct [a0 a1 a2 b0 b1 b2 c0 c1 c2])
+                      (fd/distinct [a0 a1 a2 b0 b1 b2 c0 c1 c2])
+
+                      ; fd/eq is just a helper to allow us to use standard Clojure
+                      ;; operators like + instead of fd/+
+
+                      (fd/eq
+                        (= (* (+ c0 c1) c2) 72)
+                        ;; Vertical conditions for the puzzle
+                        (= (* (+ a0 b0) c0) 25)
+                        ;(= (- (- a1 b1) c1) -4)
+                        ;(= (+ (* a2 b2) c2) 25)
+                         ;; And finally, in the puzzle we are told that the top left
+                        ;; number (a0) is 4.
+                        (= a0 4)))))
+
 ;
 ;
 ;;---------------------
 ;
 ;;;
-;;(deftest test
-;;  (testing "sudokufd-test, should succeed."
-;;    (is (= (example)
-;;           [[4 6 2] [1 7 8] [5 3 9]]))))
+(deftest test
+  (testing "sudokufd-test, should succeed."
+    (is (= (example)
+           [[4 6 2] [1 7 8] [5 3 9]]))))
+
 ;
-;
-;(defn example3 []
-;  (let [vars (repeatedly 15 lvar)
-;        rank-vals (shuffle (range 0 (count vars)))
-;        ;rank-vals (repeat (count vars) 0)
-;        crank (zipmap vars rank-vals)
-;        [a0 a1 a2  ;; Top row
-;         a3 a4 a5  ;; Middle row
-;         a6 a7 a8
-;         r1 r2 r3
-;         r4 r5 r6] vars]
-;    (run-crank 1 crank [q]
-;               ;; Create some new logic vars (lvars) for us to use in our rules
-;               ;; Unify q with our lvars in the output format we want
-;               (== q [[a0 a1 a2]
-;                      [a3 a4 a5]
-;                      [a6 a7 a8]
-;                      [r1 r2 r3]
-;                      [r4 r5 r6]])
-;               ; 7 types
-;               (everyg #(fd/in % (fd/domain 1 2 3 4 5 6 7)) (take 9 vars))
-;               ; 4 relations
-;               (everyg #(fd/in % (fd/domain 1 2 3 4 5)) (take-last 6 vars))
-;               ; The following to make sure first the types are similar
-;               (condr (0 (fd/eq
-;                            (= a0 a1)
-;                            (= a1 a2))
-;                        (fd/eq
-;                           (= a3 a4)
-;                           (= a4 a5))
-;                       (fd/eq
-;                           (= a6 a7)
-;                           (= a7 a8))
-;                        (fd/eq
-;                          (= r1 r2)
-;                          (= r2 r3)))
-;                      (0 (fd/eq
-;                           (= a0 a3)
-;                           (= a3 a6))
-;                       (fd/eq
-;                           (= a1 a4)
-;                           (= a4 a7))
-;                       (fd/eq
-;                           (= a2 a5)
-;                           (= a5 a8))
-;                        (fd/eq
-;                          (= r4 r5)
-;                          (= r5 r6)))))))
-;
-;
+(defn example3 []
+  (let [vars (repeatedly 15 lvar)
+        rank-vals (shuffle (range 0 (count vars)))
+        ;rank-vals (repeat (count vars) 0)
+        crank (zipmap vars rank-vals)
+        [a0 a1 a2  ;; Top row
+         a3 a4 a5  ;; Middle row
+         a6 a7 a8
+         r1 r2 r3
+         r4 r5 r6] vars]
+    (run-crank 1 crank [q]
+               ;; Create some new logic vars (lvars) for us to use in our rules
+               ;; Unify q with our lvars in the output format we want
+               (== q [[a0 a1 a2]
+                      [a3 a4 a5]
+                      [a6 a7 a8]
+                      [r1 r2 r3]
+                      [r4 r5 r6]])
+               ; 7 types
+               (everyg #(fd/in % (fd/domain 1 2 3 4 5 6 7)) (take 9 vars))
+               ; 4 relations
+               (everyg #(fd/in % (fd/domain 1 2 3 4 5)) (take-last 6 vars))
+               ; The following to make sure first the types are similar
+               (condr (0 (fd/eq
+                            (= a0 a1)
+                            (= a1 a2))
+                        (fd/eq
+                           (= a3 a4)
+                           (= a4 a5))
+                       (fd/eq
+                           (= a6 a7)
+                           (= a7 a8))
+                        (fd/eq
+                          (= r1 r2)
+                          (= r2 r3)))
+                      (0 (fd/eq
+                           (= a0 a3)
+                           (= a3 a6))
+                       (fd/eq
+                           (= a1 a4)
+                           (= a4 a7))
+                       (fd/eq
+                           (= a2 a5)
+                           (= a5 a8))
+                        (fd/eq
+                          (= r4 r5)
+                          (= r5 r6)))))))
+
+
 ;;;
-;(deftest test
-;  (testing "sudokufd-test, should succeed."
-;    (is (= (example3)
-;           [[4 6 2] [1 7 8] [5 3 9]]))))
+(deftest test
+  (testing "sudokufd-test, should succeed."
+    (is (= (example2)
+           '([[4 2 3] [1 8 9] [5 7 6]])))))
 
 
 
@@ -171,119 +170,119 @@
 ;           (2 (== e `(b . ,a)) (test0 a (add1 n)))
 ;           (4 (== e `(a . ,b)) (test0 b (add1 n))))))
 
-;(defn test0 [e n]
-;  (fresh (a b)
-;         (condr
-;           (1 (== e '(x)))
-;           (2 (== e `(b ~a)) (test0 a (inc n)))
-;           (4 (== e `(a ~b)) (test0 b (inc n))))))
+(defn test0 [e n]
+  (fresh (a b)
+         (condr
+           (1 (== e '(x)))
+           (2 (== e `(b ~a)) (test0 a (inc n)))
+           (4 (== e `(a ~b)) (test0 b (inc n))))))
 
 
 
-;(defn test1 []
-;  (run* [q] (conde ((== q true)) ((== q false)))))
+(defn test1 []
+  (run* [q] (conde ((== q true)) ((== q false)))))
+
+(deftest cond-test-1
+  (testing "checking the simplest case for conde"
+    (is (= (test1) '(false true)) )))
+
+;;=================
+(defn test2 []
+  (run* [q] (condr (2 (== q false)) (1 (== q true)))))
+
+(deftest condr-test-2
+  (testing "checking the simplest case for condr"
+    (is (= (test2) '(true false)) )))
+;===================
 ;
-;(deftest cond-test-1
-;  (testing "checking the simplest case for conde"
-;    (is (= (test1) '(false true)) )))
+(defn test3 []
+  (run* [q]
+        (fresh [a b]
+               (condr
+                 (2 (== q false))
+                 (1 (== q `(~a ~b))
+                   (== a true)
+                   (== b true))))))
+
+(deftest condr-test3
+  (is (= (test3) '(false (true true)))))
+
+;;===============================
 ;
-;;;=================
-;(defn test2 []
-;  (run* [q] (condr (2 (== q false)) (1 (== q true)))))
-;
-;(deftest condr-test-2
-;  (testing "checking the simplest case for condr"
-;    (is (= (test2) '(true false)) )))
-;;===================
-;;
-;(defn test3 []
-;  (run* [q]
-;        (fresh [a b]
-;               (condr
-;                 (2 (== q false))
-;                 (1 (== q `(~a ~b))
-;                   (== a true)
-;                   (== b true))))))
-;
-;(deftest condr-test3
-;  (is (= (test3) '(false (true true)))))
-;
-;;;===============================
-;;
-;
-;(defn test4 []
-;  (run* [q]
-;        (fresh [a b]
-;               (condr
-;                 (4 (== q false))
-;                 (1 (== q `(~a ~b))
-;                   (== a true)
-;                   (== b true))))))
-;
-;
-;(deftest condr-test4
-;  (is (= (test4) '((true true) false))))
-;
-;;==============================
-;(defn test5 []
-;  (run* [q]
-;        (fresh [a b]
-;               (== q `(~a ~b))
-;               (conde
-;                 ((condr
-;                    (2 (== a 'a) (== b 'b))
-;                    (1 (== a 'b) (== b 'a))))
-;                 ((condr
-;                    (2 (== a 'a) (== b 'a))
-;                    (1 (== a 'b) (== b 'b))))))))
-;
-;
-;(deftest condr-conde-combo-test
-;  (testing "combining conde and condr"
-;    (is (= (test5) '((b a) (b b) (a b) (a a))))))
-;
-;;==================
-;
-;;(defn recur-e [e]
-;;  (fresh [a b]
-;;         (conde ((== e '(x)))
-;;                ((== e `(b ~a)) (recur-e a))
-;;                ((== e `(a ~b)) (recur-e b)))))
-;;
-;;(defn test6 []
-;;  (run 5 [q] (recur-e q)))
-;;
-;;(deftest recur-e-test
-;;  (is (= (test6) '((x) (`b (x)) (`a (x)) (`b (`b (x))) (`a (`b (x)))))))
-;
-;(defn recur-r [e]
+
+(defn test4 []
+  (run* [q]
+        (fresh [a b]
+               (condr
+                 (4 (== q false))
+                 (1 (== q `(~a ~b))
+                   (== a true)
+                   (== b true))))))
+
+
+(deftest condr-test4
+  (is (= (test4) '((true true) false))))
+
+;==============================
+(defn test5 []
+  (run* [q]
+        (fresh [a b]
+               (== q `(~a ~b))
+               (conde
+                 ((condr
+                    (2 (== a 'a) (== b 'b))
+                    (1 (== a 'b) (== b 'a))))
+                 ((condr
+                    (2 (== a 'a) (== b 'a))
+                    (1 (== a 'b) (== b 'b))))))))
+
+
+(deftest condr-conde-combo-test
+  (testing "combining conde and condr"
+    (is (= (test5) '((b a) (b b) (a b) (a a))))))
+
+;==================
+
+;(defn recur-e [e]
 ;  (fresh [a b]
-;         (condr (10 (== e '(x)))
-;                (4 (== e `(b ~a)) (recur-r a))
-;                (2 (== e `(a ~b)) (recur-r b)))))
+;         (conde ((== e '(x)))
+;                ((== e `(b ~a)) (recur-e a))
+;                ((== e `(a ~b)) (recur-e b)))))
 ;
+;(defn test6 []
+;  (run 5 [q] (recur-e q)))
 ;
-;(defn test7 []
-;  (run 5 [q] (recur-r q)))
-;
+;(deftest recur-e-test
+;  (is (= (test6) '((x) (`b (x)) (`a (x)) (`b (`b (x))) (`a (`b (x)))))))
+
+(defn recur-r [e]
+  (fresh [a b]
+         (condr (10 (== e '(x)))
+                (4 (== e `(b ~a)) (recur-r a))
+                (2 (== e `(a ~b)) (recur-r b)))))
+
+
+(defn test7 []
+  (run 5 [q] (recur-r q)))
+
 ;(deftest recur-r-test
 ;  (is (= (test7) '((x) (a x) (b x) (a a x) (b a x)))))
 
-;;;
-;(defn recur-r-n [e n]
-;  (fresh (a b)
-;         (condr
-;           (1
-;             (== e '(x)))
-;           (4 (== e `(b ~a))
-;           (recur-r-n a (inc n)))
-;           (2 (== e `(a ~b))
-;             (recur-r-n b (inc n))))))
-;
-;(defn test8 []
-;  (run 5 [q] (recur-r-n q 0)))
-;
-;
+;;
+(defn recur-r-n [e n]
+  (fresh (a b)
+         (condr
+           (1
+             (== e '(x)))
+           (4 (== e `(b ~a))
+           (recur-r-n a (inc n)))
+           (2 (== e `(a ~b))
+             (recur-r-n b (inc n))))))
+
+(defn test8 []
+  (run 5 [q] (recur-r-n q 0)))
+
+
 ;(deftest recur-r-n-test
 ;  (is (= (test8) '((a x) (b x) (a a x) (x) (a b x)))))
 
