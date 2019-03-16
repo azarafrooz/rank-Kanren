@@ -9,21 +9,20 @@
            [clojure.core.logic.protocols
             IBindable ITreeTerm IVar ITreeConstraint INonStorable]))
 
-(defmacro ^:private compile-when
+
+
+ (defmacro ^:private compile-when
   ([exp then]
-   (if (try (eval exp)
-            (catch Throwable _ false))
-     `(do ~then))))
+     (if (try (eval exp)
+              (catch Throwable _ false))
+       `(do ~then))))
 
 (def ^{:dynamic true} *locals*)
 
 (def fk (Exception.))
 
-(defprotocol IForceRankAnswerTerm
-  (-force-rank-ans [v x rank]))
-
 ;; =============================================================================
-;; Utilities
+;; Utilities : Exact copy of https://github.com/clojure/core.logic/blob/master/src/main/clojure/clojure/core/logic.clj
 
 (defn assoc-meta [x k v]
   (with-meta x (assoc (meta x) k v)))
@@ -38,11 +37,8 @@
   (assoc x :doms (dissoc (:doms x) k)))
 
 (compile-when (not (resolve 'clojure.core/record?))
-              (defn record? [x]
-                (instance? clojure.lang.IRecord x)))
-
-(defn apply-min [ls]
-  (apply min ls))
+  (defn record? [x]
+    (instance? clojure.lang.IRecord x)))
 
 ;; =============================================================================
 ;; Pair
@@ -62,13 +58,13 @@
 
   clojure.lang.Indexed
   (nth [_ i] (case i
-               0 lhs
-               1 rhs
-               (throw (IndexOutOfBoundsException.))))
+                   0 lhs
+                   1 rhs
+                   (throw (IndexOutOfBoundsException.))))
   (nth [_ i not-found] (case i
-                         0 lhs
-                         1 rhs
-                         not-found))
+                             0 lhs
+                             1 rhs
+                             not-found))
 
   java.util.Map$Entry
   (getKey [_] lhs)
@@ -97,13 +93,13 @@
 
 (defn var-rands [a c]
   (->> (-rands c)
-       (map #(root-var a %))
-       (filter lvar?)
-       (into [])))
+    (map #(root-var a %))
+    (filter lvar?)
+    (into [])))
 
 (defn unbound-rands [a c]
   (->> (var-rands a c)
-       (filter #(lvar? (root-val a %)))))
+    (filter #(lvar? (root-val a %)))))
 
 ;; ConstraintStore
 ;; -----
@@ -218,7 +214,7 @@
 ;; =============================================================================
 ;; Substitutions
 
-(declare empty-s choice lvar lvar? lcons run-constraints*)
+(declare empty-s choice lvar lvar? pair lcons run-constraints*)
 
 (defn occurs-check [s u v]
   (let [v (walk s v)]
@@ -234,11 +230,11 @@
 (defn walk* [s v]
   (let [v (walk s v)]
     (walk-term v
-               (fn [x]
-                 (let [x (walk s x)]
-                   (if (tree-term? x)
-                     (walk* s x)
-                     x))))))
+      (fn [x]
+        (let [x (walk s x)]
+         (if (tree-term? x)
+           (walk* s x)
+           x))))))
 
 (defn unify [s u v]
   (if (identical? u v)
@@ -269,74 +265,16 @@
 
 (defn -reify
   ([s v]
-   (let [v (walk* s v)]
-     (walk* (-reify* (with-meta empty-s (meta s)) v) v)))
+     (let [v (walk* s v)]
+       (walk* (-reify* (with-meta empty-s (meta s)) v) v)))
   ([s v r]
-   (let [v (walk* s v)]
-     (walk* (-reify* r v) v))))
+     (let [v (walk* s v)]
+       (walk* (-reify* r v) v))))
 
 (defn build [s u]
   (build-term u s))
 
-(declare empty-s make-s lambdaf)
-
-;; The first step toward guided search is to associate each stream and substitution with a rank by converting each
-;; into a record that contains the original contents and an additional field for rank. Ranks are numerical values to
-;; guide the search.
-
-;; case-\inf macro of the original thesis/paper is handled via various types. In minikanren we check to make sure
-;; a stream is not nil clojure or it is a function or a pair whose cdr is a function. In core.logic we have protocols
-;; for this.
-
-(defrecord Stream [rank proc])
-
-(defn invok [stream]
-  ;(trace (:proc stream))
-  "the invoke function has been provided to ease the loss of raw thunks in the implementation."
-  ((:proc stream)))
-
-;; -----------------------------------------------------------------------------
-;; -----------------------------------------------------------------------------
-;; Inc
-(defmacro -inc
-  "thunk"
-  [rank & rest]
-  `(Stream. ~rank (fn ~'-inc [] ~@rest)))
-
-
-(defmacro lambdaf
-  "thunk"
-  [_ rank & rest]
-  `(Stream. ~rank (fn ~'lambdaf [] ~@rest)))
-
-
-;(defmacro lambdaf
-;  "similar to thunk but with extra pram "
-;  [_ rank & rest]
-;  `(make-stream ~rank ~@rest))
-
-;(defmacro lambdaf
-;  "thunk add _ rank and rest and we get initialiation error"
-;  [rank & rest]
-;  `(make-stream ~rank (fn [] ~rest)))
-
-;;=======================================================================================================
-;; rKanren implementation includes
-;;a) Adding ranks to streams. b) Adding ranks to substitutions (which are essentially streams of length 1)
-; In clojure.logic substitutions are already record, therefore adding ranks are straightforward.
-;;=======================================================================================================
-;;==================================================================================================
-;;==================================================================================================
-;(defprotocol ISubstitutions
-;  (ext-no-check [this x v])
-;  (walk [this x]))
-
-(defprotocol IRank
-  (get-rank [this])
-  (incr-rank [this])
-  (add-rank [this r]))
-
-
+(declare empty-s make-s)
 
 ;; Substitutions
 ;; -----
@@ -348,8 +286,8 @@
 ;; cq  - for the constraint queue
 ;; cqs - constraint ids in the queue
 ;; oc  - occurs check
-;; crank - given ranks
-(deftype Substitutions [s rank crank vs ts cs cq cqs oc _meta]
+
+(deftype Substitutions [s vs ts cs cq cqs oc _meta]
   Object
   (equals [this o]
     (or (identical? this o)
@@ -364,7 +302,7 @@
   clojure.lang.IObj
   (meta [this] _meta)
   (withMeta [this new-meta]
-    (Substitutions. s rank crank vs ts cs cq cqs oc new-meta))
+    (Substitutions. s vs ts cs cq cqs oc new-meta))
 
   clojure.lang.ILookup
   (valAt [this k]
@@ -372,8 +310,6 @@
   (valAt [this k not-found]
     (case k
       :s   s
-      :rank rank
-      :crank crank
       :vs  vs
       :ts  ts
       :cs  cs
@@ -393,30 +329,26 @@
 
   clojure.lang.Associative
   (containsKey [this k]
-    (contains? #{:s :rank :crank :vs :cs :cq :cqs :oc} k))
+    (contains? #{:s :vs :cs :cq :cqs :oc} k))
   (entryAt [this k]
     (case k
-      :s    [:s s]
-      :rank [:rank rank]
-      :crank [:crank crank]
-      :vs   [:vs vs]
-      :ts   [:ts ts]
-      :cs   [:cs cs]
-      :cq   [:cq cq]
-      :cqs  [:cqs cqs]
-      :oc   [:oc cqs]
+      :s   [:s s]
+      :vs  [:vs vs]
+      :ts  [:ts ts]
+      :cs  [:cs cs]
+      :cq  [:cq cq]
+      :cqs [:cqs cqs]
+      :oc  [:oc cqs]
       nil))
   (assoc [this k v]
     (case k
-      :s    (Substitutions. v rank crank vs ts cs cq cqs oc _meta)
-      :rank (Substitutions. s v crank vs ts cs cq cqs oc _meta)
-      :crank (Substitutions. s rank v vs ts cs cq cqs oc _meta)
-      :vs   (Substitutions. s rank crank v ts cs cq cqs oc _meta)
-      :ts   (Substitutions. s rank crank vs v cs cq cqs oc _meta)
-      :cs   (Substitutions. s rank crank vs ts v cq cqs oc _meta)
-      :cq   (Substitutions. s rank crank vs ts cs v cqs oc _meta)
-      :cqs  (Substitutions. s rank crank vs ts cs cq  v oc _meta)
-      :oc   (Substitutions. s rank crank vs ts cs cq cqs v _meta)
+      :s   (Substitutions. v vs ts cs cq cqs oc _meta)
+      :vs  (Substitutions. s  v ts cs cq cqs oc _meta)
+      :ts  (Substitutions. s vs  v cs cq cqs oc _meta)
+      :cs  (Substitutions. s vs ts  v cq cqs oc _meta)
+      :cq  (Substitutions. s vs ts cs  v cqs oc _meta)
+      :cqs (Substitutions. s vs ts cs cq   v oc _meta)
+      :oc  (Substitutions. s vs ts cs cq cqs  v _meta)
       (throw (Exception. (str "Substitutions has no field for key" k)))))
 
   ISubstitutions
@@ -424,7 +356,7 @@
     (let [u (if-not (lvar? v)
               (assoc-meta u ::root true)
               u)]
-      (Substitutions. (assoc s u v) rank crank (if vs (conj vs u)) ts cs cq cqs oc _meta)))
+      (Substitutions. (assoc s u v) (if vs (conj vs u)) ts cs cq cqs oc _meta)))
 
   (walk [this v]
     (if (bindable? v)
@@ -470,7 +402,6 @@
       v))
 
   (ext-run-cs [this x v]
-    ;(trace x)
     (let [x  (root-var this x)
           xs (if (lvar? v)
                [x (root-var this v)]
@@ -485,8 +416,8 @@
     (let [id (id c)]
       (if-not (cqs id)
         (-> this
-            (assoc :cq (conj (or cq []) c))
-            (assoc :cqs (conj cqs id)))
+          (assoc :cq (conj (or cq []) c))
+          (assoc :cqs (conj cqs id)))
         this)))
 
   (update-var [this x v]
@@ -494,18 +425,12 @@
 
   IBind
   (bind [this g]
-    ;(trace-forms g)
     (g this))
   IMPlus
   (mplus [this f]
-    (incr-rank (choice this f)))
+    (choice this f))
   ITake
-  (take* [this] this)
-  IRank
-  (get-rank [this] rank)
-  (incr-rank [this] (assoc this :rank (inc rank)))
-  (add-rank [this r] (assoc this :rank (+ rank r))))
-
+  (take* [this] this))
 
 (defn add-attr [s x attr attrv]
   (let [x (root-var s x)
@@ -544,45 +469,45 @@
 
 (defn add-dom
   ([s x dom domv]
-   (let [x (root-var s x)]
-     (add-dom s x dom domv nil)))
+     (let [x (root-var s x)]
+       (add-dom s x dom domv nil)))
   ([s x dom domv seenset]
-   (let [v (root-val s x)
-         s (if (subst-val? v)
-             (update-var s x (assoc-dom v dom domv))
-             (let [v (if (lvar? v) ::unbound v)]
-               (ext-no-check s x (subst-val v {dom domv}))))]
-     (sync-eset s v seenset
-                (fn [s y] (add-dom s y dom domv (conj (or seenset #{}) x)))))))
+     (let [v (root-val s x)
+           s (if (subst-val? v)
+               (update-var s x (assoc-dom v dom domv))
+               (let [v (if (lvar? v) ::unbound v)]
+                 (ext-no-check s x (subst-val v {dom domv}))))]
+       (sync-eset s v seenset
+         (fn [s y] (add-dom s y dom domv (conj (or seenset #{}) x)))))))
 
 (defn update-dom
   ([s x dom f]
-   (let [x (root-var s x)]
-     (update-dom s x dom f nil)))
+     (let [x (root-var s x)]
+       (update-dom s x dom f nil)))
   ([s x dom f seenset]
-   (let [v (root-val s x)
-         v (if (lvar? v)
-             (subst-val ::unbound)
-             v)
-         doms (:doms v)
-         s (update-var s x (assoc-dom v dom (f (get doms dom))))]
-     (sync-eset s v seenset
-                (fn [s y] (update-dom s y dom f (conj (or seenset #{}) x)))))))
+     (let [v (root-val s x)
+           v (if (lvar? v)
+               (subst-val ::unbound)
+               v)
+           doms (:doms v)
+           s (update-var s x (assoc-dom v dom (f (get doms dom))))]
+       (sync-eset s v seenset
+         (fn [s y] (update-dom s y dom f (conj (or seenset #{}) x)))))))
 
 (defn rem-dom
   ([s x dom]
-   (let [x (root-var s x)]
-     (rem-dom s x dom nil)))
+     (let [x (root-var s x)]
+       (rem-dom s x dom nil)))
   ([s x dom seenset]
-   (let [v (root-val s x)
-         s (if (subst-val? v)
-             (let [new-doms (dissoc (:doms v) dom)]
-               (if (and (zero? (count new-doms)) (not= (:v v) ::unbound))
-                 (update-var s x (:v v))
-                 (update-var s x (assoc v :doms new-doms))))
-             s)]
-     (sync-eset s v seenset
-                (fn [s y] (rem-dom s y dom (conj (or seenset #{}) x)))))))
+     (let [v (root-val s x)
+           s (if (subst-val? v)
+               (let [new-doms (dissoc (:doms v) dom)]
+                 (if (and (zero? (count new-doms)) (not= (:v v) ::unbound))
+                   (update-var s x (:v v))
+                   (update-var s x (assoc v :doms new-doms))))
+               s)]
+       (sync-eset s v seenset
+         (fn [s y] (rem-dom s y dom (conj (or seenset #{}) x)))))))
 
 ;; NOTE: I don't think we need to bother returning ::not-dom or some other
 ;; not found value. Assume the case where the var is bound to nil in
@@ -602,31 +527,18 @@
 (defn- make-s
   ([] (make-s {}))
   ([m] (make-s m (make-cs)))
-  ([m cs] (Substitutions. m 0 nil nil nil cs nil #{} true nil))
-  ([m rank crank cs] (Substitutions. m rank crank nil nil cs nil #{} true nil)))
-
+  ([m cs] (Substitutions. m nil nil cs nil #{} true nil)))
 
 (defn tabled-s
   ([] (tabled-s false))
-  ([oc] (tabled-s nil oc nil))
-  ([crank oc meta]
-   (-> (with-meta (make-s) meta)
-       (assoc :crank crank)
+  ([oc] (tabled-s oc nil))
+  ([oc meta]
+     (-> (with-meta (make-s) meta)
        (assoc :oc oc)
        (assoc :ts (atom {})))))
 
-;; -----------------------------------------------------------------------------
-;(defmacro mzero []
-;  `(nil))
-;
-;(defn mzero []
-;  (fn [] nil))
-
 (def empty-s (make-s))
-
-(def empty-f (lambdaf '() 0 nil))
-;(def empty-f (lambdaf '() 0 nil))
-
+(def empty-f (fn []))
 
 (defn subst? [x]
   (instance? Substitutions x))
@@ -657,7 +569,7 @@
                         (-merge-doms domv xdomv))]
             (when ndomv
               (recur (next doms)
-                     (add-dom s x dom ndomv #{})))))
+                (add-dom s x dom ndomv #{})))))
         s))))
 
 (defn update-eset [s doms eset]
@@ -678,16 +590,16 @@
                      (let [nd (-merge-doms xv rv)]
                        (when nd
                          (recur (next xd)
-                                (dissoc rd xk) (assoc r xk nd))))
+                           (dissoc rd xk) (assoc r xk nd))))
                      (recur (next xd) rd (assoc r xk xv))))
                  (merge r rd)))
         nv (when doms
              (subst-val (:v rootv) doms eset
-                        (merge (meta xv) (meta rootv))))]
+               (merge (meta xv) (meta rootv))))]
     (when nv
       (-> s
-          (ext-no-check root nv)
-          (update-eset doms eset)))))
+        (ext-no-check root nv)
+        (update-eset doms eset)))))
 
 ;; =============================================================================
 ;; Entanglement
@@ -703,8 +615,8 @@
         xv (to-subst-val (root-val s x))
         yv (to-subst-val (root-val s y))]
     (-> s
-        (update-var x (assoc xv :eset (conj (or (:eset xv) #{}) y)))
-        (update-var y (assoc yv :eset (conj (or (:eset yv) #{}) x))))))
+      (update-var x (assoc xv :eset (conj (or (:eset xv) #{}) y)))
+      (update-var y (assoc yv :eset (conj (or (:eset yv) #{}) x))))))
 
 ;; =============================================================================
 ;; Logic Variables
@@ -789,28 +701,27 @@
   (build-term [u s]
     (let [m (:s s)
           cs (:cs s)
-          lv (lvar 'ignore)
-          rank (:rank s)]
+          lv (lvar 'ignore) ]
       (if (contains? m u)
         s
-        (make-s (assoc m u lv) rank cs)))))
+        (make-s (assoc m u lv) cs)))))
 
 (defn lvar
   ([]
-   (let [id (. clojure.lang.RT (nextID))
-         name (str id)]
-     (LVar. id true name nil (.hashCode name) nil)))
+     (let [id (. clojure.lang.RT (nextID))
+           name (str id)]
+       (LVar. id true name nil (.hashCode name) nil)))
   ([name]
-   (lvar name true))
+     (lvar name true))
   ([name unique]
-   (let [oname name
-         id   (if unique
-                (. clojure.lang.RT (nextID))
-                name)
-         name (if unique
-                (str name "__" id)
-                (str name))]
-     (LVar. id unique name oname (.hashCode name) nil))))
+     (let [oname name
+           id   (if unique
+                  (. clojure.lang.RT (nextID))
+                  name)
+           name (if unique
+                  (str name "__" id)
+                  (str name))]
+       (LVar. id unique name oname (.hashCode name) nil))))
 
 (defmethod print-method LVar [x ^Writer writer]
   (.write writer (str "<lvar:" (:name x) ">")))
@@ -859,14 +770,14 @@
   LConsPrint
   (toShortString [this]
     (cond
-      (.. this getClass (isInstance d)) (str a " " (toShortString d))
-      :else (str a " . " d )))
+     (.. this getClass (isInstance d)) (str a " " (toShortString d))
+     :else (str a " . " d )))
 
   Object
   (toString [this] (cond
-                     (.. this getClass (isInstance d))
-                     (str "(" a " " (toShortString d) ")")
-                     :else (str "(" a " . " d ")")))
+                    (.. this getClass (isInstance d))
+                      (str "(" a " " (toShortString d) ")")
+                    :else (str "(" a " . " d ")")))
 
   (equals [this o]
     (or (identical? this o)
@@ -874,17 +785,17 @@
              (loop [me this
                     you o]
                (cond
-                 (nil? me) (nil? you)
-                 (lvar? me) true
-                 (lvar? you) true
-                 (and (lcons? me) (lcons? you))
-                 (let [mef  (lfirst me)
-                       youf (lfirst you)]
-                   (and (or (= mef youf)
-                            (lvar? mef)
-                            (lvar? youf))
-                        (recur (lnext me) (lnext you))))
-                 :else (= me you))))))
+                (nil? me) (nil? you)
+                (lvar? me) true
+                (lvar? you) true
+                (and (lcons? me) (lcons? you))
+                  (let [mef  (lfirst me)
+                        youf (lfirst you)]
+                    (and (or (= mef youf)
+                             (lvar? mef)
+                             (lvar? youf))
+                         (recur (lnext me) (lnext you))))
+                :else (= me you))))))
 
   (hashCode [this]
     (if (clojure.core/== cache -1)
@@ -1064,7 +975,7 @@
       (if (seq v)
         (let [[vfk vfv] (first v)]
           (recur (next v) (assoc r (walk-term (f vfk) f)
-                                   (walk-term (f vfv) f))))
+                                 (walk-term (f vfv) f))))
         r))
     (meta v)))
 
@@ -1076,10 +987,10 @@
   (walk-term [v f] (f v))
 
   clojure.lang.ISeq
-  (walk-term [v f]
-    (with-meta
-      (doall (map #(walk-term (f %) f) v))
-      (meta v)))
+   (walk-term [v f]
+     (with-meta
+       (doall (map #(walk-term (f %) f) v))
+       (meta v)))
 
   clojure.lang.IPersistentVector
   (walk-term [v f]
@@ -1141,37 +1052,37 @@
 
 ;; =============================================================================
 ;; Goals and Goal Constructors
-;;==============================================================================================================
-;;==================================================================================================
+
 (defn composeg
   ([] identity)
   ([g0 g1]
-   (fn [a]
-     (let [a (g0 a)]
-       (and a (g1 a))))))
+     (fn [a]
+       (let [a (g0 a)]
+         (and a (g1 a))))))
 
 (defmacro composeg*
   ([g0] g0)
   ([g0 & gs]
-   `(composeg
-      ~g0
-      (composeg* ~@gs))))
+     `(composeg
+       ~g0
+       (composeg* ~@gs))))
 
 (defmacro bind*
-  ([a g]
-   `(bind ~a ~g))
+  ([a g] `(bind ~a ~g))
   ([a g & g-rest]
-   `(bind* (bind ~a ~g) ~@g-rest)))
+     `(bind* (bind ~a ~g) ~@g-rest)))
 
+(defmacro mplus*
+  ([e] e)
+  ([e & e-rest]
+     `(mplus ~e (fn [] (mplus* ~@e-rest)))))
 
-;
-;(extend-type Object
-;  ITake
-;  (take* [this] this))
+(defmacro -inc [& rest]
+  `(fn ~'-inc [] ~@rest))
 
-; Not sure if there any invoke function is missing in the current bind implementation! It is hard to figure
-; it out without further experimentation, cuz the thesis implementation and the core.logic are slightly different.
-; A non empty stream is represented as Choice.
+(extend-type Object
+  ITake
+  (take* [this] this))
 
 (deftype Choice [a f]
   clojure.lang.ILookup
@@ -1181,20 +1092,12 @@
     (case k
       :a a
       not-found))
-  IRank
-  (incr-rank [this]
-    (choice (incr-rank a)
-            (incr-rank f)))
   IBind
   (bind [this g]
-    (mplus (g a) (lambdaf '() (get-rank f) (bind f g))))
+    (mplus (g a) (fn [] (bind f g))))
   IMPlus
   (mplus [this fp]
-    (incr-rank (Choice. a (let [f-rank (get-rank f)
-                                fp-rank (get-rank fp)]
-                            (if (< fp-rank f-rank)
-                              (lambdaf '() fp-rank (mplus (incr-rank (invok fp)) f))
-                              (lambdaf '() f-rank (mplus (incr-rank (invok f)) fp)))))))
+    (Choice. a (fn [] (mplus (fp) f))))
   ITake
   (take* [this]
     (lazy-seq (cons a (lazy-seq (take* f))))))
@@ -1202,72 +1105,37 @@
 (defn choice [a f]
   (Choice. a f))
 
+;; -----------------------------------------------------------------------------
+;; MZero
 
 (extend-type nil
   IBind
   (bind [_ g] nil)
   IMPlus
-  (mplus [_ f] (incr-rank (invok f)))
+  (mplus [_ f] (f))
   ITake
-  (take* [_] nil)
-  IRank
-  (get-rank [_] -1)
-  (incr-rank [_] nil))
+  (take* [_] '()))
 
-;;==================================================================================================
+;; -----------------------------------------------------------------------------
 ;; Unit
-;;==================================================================================================
+
 (extend-type Object
   IMPlus
   (mplus [this f]
-    (incr-rank (Choice. this f)))
-  ITake
-  (take* [this] this)
-  IRank
-  (get-rank [this] -1)
-  (incr-rank [this] this)
-  (add-rank [this r] this))
-
-;; -----------
-
+    (Choice. this f)))
 
 ;; -----------------------------------------------------------------------------
+;; Inc
 
-(defmacro mplus*
-  "A rank-sensitive implementation of mplus."
-  ([e] e)
-  ([e & e-rest]
-   ;(trace e)
-   ;(trace e-rest)
-   (let [min-rank (apply-min (map get-rank e-rest))
-         e-rank (get-rank e)]
-     (if (< e-rank min-rank)
-       `(mplus ~e (lambdaf () ~min-rank (mplus* ~@e-rest)))
-       `(mplus (lambdaf () ~min-rank (mplus* ~@e-rest)) (lambdaf () ~e-rank ~e))))))
-
-
-
-(extend-type Stream
+(extend-type clojure.lang.Fn
   IBind
   (bind [this g]
-    (-inc (get-rank this) (bind (invok this) g)))
+    (-inc (bind (this) g)))
   IMPlus
   (mplus [this f]
-    (incr-rank (let [this-rank (get-rank this)
-                     f-rank (get-rank f)]
-                 (if (< this-rank f-rank)
-                   (-inc this-rank (mplus (invok this) f))
-                   (-inc f-rank (mplus (invok f) this))))))
-  IRank
-  (get-rank [this] (:rank this))
-  (incr-rank [this] (Stream.
-                      (inc (get-rank this))
-                      (:proc this)))
+    (-inc (mplus (f) this)))
   ITake
-  (take* [this]
-    ;(trace this)
-    (lazy-seq (take* (invok this)))))
-
+  (take* [this] (lazy-seq (take* (this)))))
 
 ;; =============================================================================
 ;; Syntax
@@ -1285,7 +1153,6 @@
 (def u# fail)
 
 (defn ext-run-csg [u v]
-  ;(trace u)
   (fn [a]
     (ext-run-cs a u v)))
 
@@ -1301,67 +1168,22 @@
           ((run-constraints* vs (:cs ap) ::subst) (assoc ap :vs nil))
           ap)))))
 
-
-;;;;;=======
-
 (defn- bind-conde-clause [a]
   (fn [g-rest]
-    (let [rank (:rank g-rest)
-          alist (:alist g-rest)]
-      `(-inc ~rank  (bind* ~a ~@alist)))))
+    `(bind* ~a ~@g-rest)))
 
-
-(defn bind-conde-clauses [a clauses]
-  ;(trace clauses)
-  ;(trace (count clauses))
-  (let [random-ranks (take (count clauses) (repeatedly  #(rand-int 10)))
-        ranks (replicate (count clauses) 0)
-        goals (map #(assoc {} :rank %1 :alist %2) ranks clauses)]
-    (map (bind-conde-clause a) goals)))
-
+(defn- bind-conde-clauses [a clauses]
+  (map (bind-conde-clause a) clauses))
 
 (defmacro conde
   "Logical disjunction of the clauses. The first goal in
-   a clause is considered the head of that clause. Interleaves the
-   execution of the clauses."
+  a clause is considered the head of that clause. Interleaves the
+  execution of the clauses."
   [& clauses]
   (let [a (gensym "a")]
     `(fn [~a]
        (-inc
-         (get-rank ~a)
-         (mplus* ~@(bind-conde-clauses a clauses))))))
-
-
-;;========================================================================================================
-;; Condr implementation
-;;========================================================================================================
-
-(defn- bind-condr-clause [a]
-  (fn [g-rest]
-    (let [rank (:weight g-rest)
-          alist (:alist g-rest)]
-      `(-inc ~rank (bind* ~a ~@alist)))))
-
-(defn bind-condr-clauses [a clauses]
-  (let [ranks (map first clauses)
-        goals (map rest clauses)
-        work-per-clause (map count goals)
-        weights (map * ranks work-per-clause)  ; weight is rank * number_of_goals_per_clause
-        goals (map #(assoc {} :weight %1 :alist %2) weights goals)]
-    (map (bind-condr-clause a) goals)))
-
-
-(defmacro condr
-  "Logical disjunction of the clauses. The first goal in
-  a clausr is considered the head of that clause. Interleaves the
-  execution of the clauses. It considers the rank for interleaving.
-  Remember clauses are in the form of (rank goals), and is different from conde of clojure.logic"
-  [& clauses]
-  (let [a (gensym "a")]
-    `(fn [~a]
-       (-inc
-         (get-rank ~a)
-         (mplus* ~@(bind-condr-clauses a clauses))))))
+        (mplus* ~@(bind-conde-clauses a clauses))))))
 
 (defn or*
   "A function version of conde, which takes a list of goals and tries them as if via conde.
@@ -1372,11 +1194,11 @@
   (letfn [(mplus'
             ([e] e)
             ([e & es]
-             (mplus e (fn [] (apply mplus' es)))))]
-    (fn [a]
-      (fn []
-        (apply mplus' (for [goal goals]
-                        (bind a goal)))))))
+               (mplus e (fn [] (apply mplus' es)))))]
+   (fn [a]
+     (fn []
+       (apply mplus' (for [goal goals]
+                       (bind a goal)))))))
 
 (defn- lvar-bind [sym]
   ((juxt identity
@@ -1391,13 +1213,8 @@
   [[& lvars] & goals]
   `(fn [a#]
      (-inc
-       (get-rank a#)
-       (let [~@(lvar-binds lvars)]
-         ;it seems to be good up to hear but ..somehow the goals
-         ; passed to condr aren't in the full format consistent with conde
-         (bind* a# ~@goals)))))
-
-
+      (let [~@(lvar-binds lvars)]
+        (bind* a# ~@goals)))))
 
 (declare reifyg)
 
@@ -1408,18 +1225,15 @@
         `(-run ~opts [~as] (fresh [~@rbindings] (== ~as [~@rbindings]) ~@goals))
         `(-run ~opts [q#] (fresh ~bindings (== q# ~bindings) ~@goals))))
     `(let [opts# ~opts
-           xs# (take* (lambdaf '() 0
-                               ((fresh [~x]
-                                       ~@goals
-                                       (reifyg ~x))
-                                 (tabled-s (:crank opts#) (:occurs-check opts#)
-                                           (merge {:reify-vars true} opts#)))))]
-
+           xs# (take* (fn []
+                        ((fresh [~x]
+                           ~@goals
+                           (reifyg ~x))
+                         (tabled-s (:occurs-check opts#)
+                            (merge {:reify-vars true} opts#)))))]
        (if-let [n# (:n opts#)]
          (take n# xs#)
-         xs#))
-    ))
-
+         xs#))))
 
 (def ^:dynamic *logic-dbs* [])
 
@@ -1454,17 +1268,10 @@
   [& goals]
   `(run-nc false ~@goals))
 
-(defmacro run-crank
-  "Executes goals for the constraint logic program in the order inferred by the provided ranks.
-  There is a rank given for any variable."
-  [n crank bindings & goals]
-  `(-run {:crank ~crank :occurs-check true :n ~n :db *logic-dbs*} ~bindings ~@goals))
-
 (defmacro all
   "Like fresh but does does not create logic variables."
   ([] `clojure.core.logic/s#)
-  ([& goals]
-   `(fn [a#] (-inc (get-rank a#) (bind* a# ~@goals)))))
+  ([& goals] `(fn [a#] (bind* a# ~@goals))))
 
 (defn and*
   "A function version of all, which takes a list of goals and succeeds only if they all succeed."
@@ -1474,9 +1281,9 @@
 
 (defn solutions
   ([s g]
-   (solutions s (lvar) g))
+     (solutions s (lvar) g))
   ([s q g]
-   (take* ((all g (reifyg q)) s))))
+     (take* ((all g (reifyg q)) s))))
 
 ;; =============================================================================
 ;; Debugging
@@ -1527,22 +1334,22 @@
     `(fn [~a]
        (let [~@(project-bindings vars a)]
          ((fresh []
-                 ~@goals) ~a)))))
+            ~@goals) ~a)))))
 
 (defmacro pred
   "Check a predicate against the value logic var. Non-relational."
   [v f]
   `(project [~v]
-            (== (~f ~v) true)))
+     (== (~f ~v) true)))
 
 ;; TODO: remove v argument - David
 
-;(defmacro is
-;  "Set the value of a var to value of another var with the operation
-;   applied. Non-relational."
-;  [u v op]
-;  `(project [~v]
-;            (== ~u (~op ~v))))
+(defmacro is
+  "Set the value of a var to value of another var with the operation
+   applied. Non-relational."
+  [u v op]
+  `(project [~v]
+     (== ~u (~op ~v))))
 
 ;; =============================================================================
 ;; conda (soft-cut), condu (committed-choice)
@@ -1557,18 +1364,18 @@
 (defmacro ifa*
   ([])
   ([[e & gs] & grest]
-   `(ifa ~e [~@gs]
-         ~(if (seq grest)
-            `(delay (ifa* ~@grest))
-            nil))))
+     `(ifa ~e [~@gs]
+           ~(if (seq grest)
+              `(delay (ifa* ~@grest))
+              nil))))
 
 (defmacro ifu*
   ([])
   ([[e & gs] & grest]
-   `(ifu ~e [~@gs]
-         ~(if (seq grest)
-            `(delay (ifu* ~@grest))
-            nil))))
+     `(ifu ~e [~@gs]
+           ~(if (seq grest)
+              `(delay (ifu* ~@grest))
+              nil))))
 
 (extend-protocol IIfA
   nil
@@ -1636,7 +1443,7 @@
   "Copies a term u into v. Non-relational."
   [u v]
   (project [u]
-           (== (walk* (build empty-s u) u) v)))
+    (== (walk* (build empty-s u) u) v)))
 
 ;; =============================================================================
 ;; lvar nonlvar
@@ -1675,10 +1482,10 @@
    expression."
   ([p vars] (p->llist p vars false))
   ([p vars quoted]
-   `(llist
-      ~@(doall
-          (map #(p->term % vars quoted)
-               (remove #(contains? '#{.} %) p))))))
+     `(llist
+       ~@(doall
+           (map #(p->term % vars quoted)
+                (remove #(contains? '#{.} %) p))))))
 
 (defn- lvar-sym? [s]
   (and (symbol? s)
@@ -1698,38 +1505,38 @@
    fresh."
   ([p vars] (p->term p vars false))
   ([p vars quoted]
-   (cond
-     (= p '_) `(lvar)
-     (lcons-p? p) (p->llist p vars quoted)
-     (coll? p)
      (cond
-       ;; support simple expressions
-       (seq? p)
-       (let [[f s] p]
-         (cond
-           (= f 'quote)
-           (if (and (seq? s) (not quoted))
-             (p->term s vars true)
-             p)
-           (= f 'clojure.core/unquote)
-           (if quoted
-             (update-pvars! s vars)
-             (throw (Exception. "Invalid use of clojure.core/unquote in pattern.")))
-           :else
-           (let [ps (map #(p->term % vars quoted) p)]
+       (= p '_) `(lvar)
+       (lcons-p? p) (p->llist p vars quoted)
+       (coll? p)
+       (cond
+         ;; support simple expressions
+         (seq? p)
+         (let [[f s] p]
+           (cond
+             (= f 'quote)
+             (if (and (seq? s) (not quoted))
+               (p->term s vars true)
+               p)
+             (= f 'clojure.core/unquote)
              (if quoted
-               `(list ~@ps)
-               ps))))
-       ;; preserve original collection type
-       :else
-       (let [ps (map #(p->term % vars quoted) p)]
-         (cond
-           (instance? clojure.lang.MapEntry p) (into [] ps)
-           :else (into (empty p) ps))))
-     (symbol? p) (if quoted
-                   (list 'quote p)
-                   (update-pvars! p vars))
-     :else p)))
+               (update-pvars! s vars)
+               (throw (Exception. "Invalid use of clojure.core/unquote in pattern.")))
+             :else
+             (let [ps (map #(p->term % vars quoted) p)]
+               (if quoted
+                 `(list ~@ps)
+                 ps))))
+         ;; preserve original collection type
+         :else
+         (let [ps (map #(p->term % vars quoted) p)]
+           (cond
+             (instance? clojure.lang.MapEntry p) (into [] ps)
+             :else (into (empty p) ps))))
+       (symbol? p) (if quoted
+                     (list 'quote p)
+                     (update-pvars! p vars))
+       :else p)))
 
 (defn- fresh-expr? [cs]
   (= (first cs) `fresh))
@@ -1738,16 +1545,16 @@
   "Takes a list of vars to declare fresh and a term t to be unified
    with relation argument a."
   ([vs t a]
-   `(fresh [~@vs]
-           (== ~t ~a)))
+     `(fresh [~@vs]
+        (== ~t ~a)))
   ([vs t a exprs]
-   (if (fresh-expr? exprs)
-     `(fresh [~@vs]
-             (== ~t ~a)
-             ~exprs)
-     `(fresh [~@vs]
-             (== ~t ~a)
-             ~@exprs))))
+     (if (fresh-expr? exprs)
+       `(fresh [~@vs]
+          (== ~t ~a)
+          ~exprs)
+       `(fresh [~@vs]
+          (== ~t ~a)
+          ~@exprs))))
 
 (defn- ex*
   "Takes a sequence of pattern/argument pairs, goal expressions and
@@ -1759,15 +1566,15 @@
         vs   (set/difference @vars seen)
         seen (reduce conj seen vs)]
     (cond
-      (nil? pa) exprs
-      (= p '_) (ex* par exprs seen)
-      (empty? par) (if exprs
-                     (ex vs t a exprs)
-                     (ex vs t a))
-      :else (let [r (ex* par exprs seen)]
-              (if r
-                (ex vs t a r)
-                (ex vs t a))))))
+     (nil? pa) exprs
+     (= p '_) (ex* par exprs seen)
+     (empty? par) (if exprs
+                    (ex vs t a exprs)
+                    (ex vs t a))
+     :else (let [r (ex* par exprs seen)]
+             (if r
+               (ex vs t a r)
+               (ex vs t a))))))
 
 (defn- all-blank? [p]
   (every? #(= % '_) p))
@@ -1788,7 +1595,7 @@
 
 (defn- handle-clauses [t as cs]
   `(~t
-     ~@(doall (map (handle-clause as) cs))))
+    ~@(doall (map (handle-clause as) cs))))
 
 ;; name-with-attributes by Konrad Hinsen, from clojure.contrib.def
 (defn- name-with-attributes
@@ -1805,15 +1612,15 @@
   (let [[docstring macro-args] (if (string? (first macro-args))
                                  [(first macro-args) (next macro-args)]
                                  [nil macro-args])
-        [attr macro-args]          (if (map? (first macro-args))
-                                     [(first macro-args) (next macro-args)]
-                                     [{} macro-args])
-        attr                       (if docstring
-                                     (assoc attr :doc docstring)
-                                     attr)
-        attr                       (if (meta name)
-                                     (conj (meta name) attr)
-                                     attr)]
+    [attr macro-args]          (if (map? (first macro-args))
+                                 [(first macro-args) (next macro-args)]
+                                 [{} macro-args])
+    attr                       (if docstring
+                                 (assoc attr :doc docstring)
+                                 attr)
+    attr                       (if (meta name)
+                                 (conj (meta name) attr)
+                                 attr)]
     [(with-meta name attr) macro-args]))
 
 (declare tabled)
@@ -1823,11 +1630,11 @@
 
 (defmacro -fnm [fn-gen t as & cs]
   (binding [*locals* (env-locals as (keys &env))]
-    `(~fn-gen [~@as] ~(handle-clauses t as cs))))
+     `(~fn-gen [~@as] ~(handle-clauses t as cs))))
 
 (defmacro fnm
-  {:arglists '([t as tabled? & cs])}
-  [t as & cs]
+   {:arglists '([t as tabled? & cs])}
+   [t as & cs]
   (if-let [cs (and (= (first cs) :tabled) (rest cs))]
     `(-fnm tabled ~t ~as ~@cs)
     `(-fnm fn ~t ~as ~@cs)))
@@ -1862,13 +1669,13 @@
   "A relation where l is a collection, such that a is the first of l"
   [l a]
   (fresh [d]
-         (conso a d l)))
+    (conso a d l)))
 
 (defn resto
   "A relation where l is a collection, such that d is the rest of l"
   [l d]
   (fresh [a]
-         (== (lcons a d) l)))
+    (== (lcons a d) l)))
 
 (defn everyg
   "A pseudo-relation that takes a coll and ensures that the goal g
@@ -1879,8 +1686,8 @@
       (((fn everyg* [g coll]
           (if (seq coll)
             (all
-              (g (first coll))
-              (everyg* g (next coll)))
+             (g (first coll))
+             (everyg* g (next coll)))
             s#)) g coll) a))))
 
 ;; =============================================================================
@@ -1949,40 +1756,40 @@
 (declare !=)
 
 (defne membero
-       "A relation where l is a collection, such that l contains x."
-       [x l]
-       ([_ [x . tail]])
-       ([_ [head . tail]]
-         (membero x tail)))
+  "A relation where l is a collection, such that l contains x."
+  [x l]
+  ([_ [x . tail]])
+  ([_ [head . tail]]
+    (membero x tail)))
 
 (defne member1o
-       "Like membero but uses to disequality further constraining
-        the results. For example, if x and l are ground and x occurs
-        multiple times in l, member1o will succeed only once."
-       [x l]
-       ([_ [x . tail]])
-       ([_ [head . tail]]
-         (!= x head)
-         (member1o x tail)))
+  "Like membero but uses to disequality further constraining
+   the results. For example, if x and l are ground and x occurs
+   multiple times in l, member1o will succeed only once."
+  [x l]
+  ([_ [x . tail]])
+  ([_ [head . tail]]
+    (!= x head)
+    (member1o x tail)))
 
 (defne appendo
-       "A relation where x, y, and z are proper collections,
-       such that z is x appended to y"
-       [x y z]
-       ([() _ y])
-       ([[a . d] _ [a . r]] (appendo d y r)))
+  "A relation where x, y, and z are proper collections,
+  such that z is x appended to y"
+  [x y z]
+  ([() _ y])
+  ([[a . d] _ [a . r]] (appendo d y r)))
 
 (declare rembero)
 
 (defne permuteo
-       "A relation that will permute xl into the yl. May not
-        terminate if xl is not ground."
-       [xl yl]
-       ([() ()])
-       ([[x . xs] _]
-         (fresh [ys]
-                (permuteo xs ys)
-                (rembero x yl ys))))
+  "A relation that will permute xl into the yl. May not
+   terminate if xl is not ground."
+  [xl yl]
+  ([() ()])
+  ([[x . xs] _]
+     (fresh [ys]
+      (permuteo xs ys)
+      (rembero x yl ys))))
 
 ;; =============================================================================
 ;; Rel
@@ -2066,19 +1873,19 @@
   [w success-cont failure-cont]
   (loop [w w a []]
     (cond
-      (nil? w) (failure-cont)
+     (nil? w) (failure-cont)
 
-      (ready? (first w))
-      (success-cont
-        (fn []
-          (let [ss (first w)
-                f  (:f ss)
-                w  (into a (next w))]
-            (if (empty? w)
-              (f)
-              (mplus (f) (fn [] w))))))
+     (ready? (first w))
+     (success-cont
+       (fn []
+         (let [ss (first w)
+               f  (:f ss)
+               w  (into a (next w))]
+           (if (empty? w)
+             (f)
+             (mplus (f) (fn [] w))))))
 
-      :else (recur (next w) (conj a (first w))))))
+     :else (recur (next w) (conj a (first w))))))
 
 ;; -----------------------------------------------------------------------------
 ;; Extend Substitutions to support tabling
@@ -2095,11 +1902,11 @@
   (-reify-tabled [this v]
     (let [v (walk this v)]
       (cond
-        (lvar? v) (ext-no-check this v (lvar (count (:s this))))
-        (coll? v) (-reify-tabled
-                    (-reify-tabled this (first v))
-                    (next v))
-        :else this)))
+       (lvar? v) (ext-no-check this v (lvar (count (:s this))))
+       (coll? v) (-reify-tabled
+                   (-reify-tabled this (first v))
+                   (next v))
+       :else this)))
 
   ;; returns the term v with all fresh vars replaced with copies.
   ;; this is to avoid prematurely grounding vars.
@@ -2118,52 +1925,52 @@
                 (if (= (count ansv*) end)
                   ;; we've run out of answers terms to reuse in the cache
                   [(make-suspended-stream cache start
-                                          (fn [] (reuse this argv cache (:ansl @cache) (count start))))]
+                     (fn [] (reuse this argv cache (:ansl @cache) (count start))))]
                   ;; we have answer terms to reuse in the cache
                   (let [ans (first ansv*)]
                     (Choice. (subunify this argv (reify-tabled this ans))
-                             (fn [] (reuse-loop (rest ansv*)))))))]
+                      (fn [] (reuse-loop (rest ansv*)))))))]
         (reuse-loop start))))
 
   ;; unify an argument with an answer from a cache
   (subunify [this arg ans]
     (let [arg (walk this arg)]
       (cond
-        (= arg ans) this
-        (lvar? arg) (ext-no-check this arg ans)
-        (coll? arg) (subunify
-                      (subunify this (next arg) (next ans))
-                      (first arg) (first ans))
-        :else this))))
+       (= arg ans) this
+       (lvar? arg) (ext-no-check this arg ans)
+       (coll? arg) (subunify
+                     (subunify this (next arg) (next ans))
+                     (first arg) (first ans))
+       :else this))))
 
-;;; -----------------------------------------------------------------------------
+;; -----------------------------------------------------------------------------
 ;; Waiting Stream
 
 (extend-type clojure.lang.IPersistentVector
   IBind
   (bind [this g]
     (waiting-stream-check this
-                          ;; success continuation
-                          (fn [f] (bind f g))
-                          ;; failure continuation
-                          (fn []
-                            (into []
-                                  (map (fn [ss]
-                                         (make-suspended-stream (:cache ss) (:ansv* ss)
-                                                                (fn [] (bind ((:f ss)) g))))
-                                       this)))))
+      ;; success continuation
+      (fn [f] (bind f g))
+      ;; failure continuation
+      (fn []
+        (into []
+          (map (fn [ss]
+                 (make-suspended-stream (:cache ss) (:ansv* ss)
+                   (fn [] (bind ((:f ss)) g))))
+               this)))))
 
   IMPlus
   (mplus [this f]
     (waiting-stream-check this
-                          ;; success continuation
-                          (fn [fp] (mplus fp f))
-                          ;; failure continuation
-                          (fn []
-                            (let [a-inf (f)]
-                              (if (waiting-stream? a-inf)
-                                (into a-inf this)
-                                (mplus a-inf (fn [] this)))))))
+      ;; success continuation
+      (fn [fp] (mplus fp f))
+      ;; failure continuation
+      (fn []
+        (let [a-inf (f)]
+          (if (waiting-stream? a-inf)
+            (into a-inf this)
+            (mplus a-inf (fn [] this)))))))
 
   ITake
   (take* [this]
@@ -2179,14 +1986,14 @@
     (let [rargv (-reify a argv)]
       (when-not (-cached? @cache rargv)
         (swap! cache
-               (fn [cache]
-                 (if (-cached? cache rargv)
-                   cache
-                   (-add cache (reify-tabled a argv)))))
+          (fn [cache]
+            (if (-cached? cache rargv)
+              cache
+              (-add cache (reify-tabled a argv)))))
         a))))
 
 ;; -----------------------------------------------------------------------------
-; Syntax
+;; Syntax
 
 ;; TODO: consider the concurrency implications much more closely
 
@@ -2202,22 +2009,22 @@
                  tables# (:ts a#)
                  tables# (if-not (contains? @tables# ~uuid)
                            (swap! tables#
-                                  (fn [tables#]
-                                    (if (contains? tables# ~uuid)
-                                      tables#
-                                      (assoc tables# ~uuid (atom {})))))
+                             (fn [tables#]
+                               (if (contains? tables# ~uuid)
+                                 tables#
+                                 (assoc tables# ~uuid (atom {})))))
                            @tables#)
                  table#  (get tables# ~uuid)]
              (if-not (contains? @table# key#)
                (let [table# (swap! table#
-                                   (fn [table#]
-                                     (if (contains? table# key#)
-                                       table#
-                                       (assoc table# key# (atom (answer-cache))))))
+                              (fn [table#]
+                                (if (contains? table# key#)
+                                  table#
+                                  (assoc table# key# (atom (answer-cache))))))
                      cache# (get table# key#)]
                  ((fresh []
-                         ~@grest
-                         (master argv# cache#)) a#))
+                    ~@grest
+                    (master argv# cache#)) a#))
                (let [cache# (get @table# key#)]
                  (reuse a# argv# cache# nil nil)))))))))
 
@@ -2294,22 +2101,21 @@
           (let [c (first cq)]
             (recur
               ((run-constraint c)
-                (-> a
-                    (assoc :cq (subvec (:cq a) 1))
-                    (assoc :cqs (disj (:cqs a) (id c))))))))))))
+               (-> a
+                 (assoc :cq (subvec (:cq a) 1))
+                 (assoc :cqs (disj (:cqs a) (id c))))))))))))
 
 (defn run-constraints [xcs]
   (fn [a]
     (let [cq (:cq a)
           a  (reduce (fn [a c]
                        (queue a c))
-                     (assoc a :cq (or cq [])) xcs)]
-      (if cq
-        a
-        (fix-constraints a)))))
+               (assoc a :cq (or cq [])) xcs)]
+     (if cq
+       a
+       (fix-constraints a)))))
 
 (defn run-constraints* [xs cs ws]
-  ;(trace xs)
   (if (or (zero? (count cs))
           (nil? (seq xs)))
     s#
@@ -2317,8 +2123,8 @@
       (let [xcs (constraints-for cs a (first xs) ws)]
         (if (seq xcs)
           ((composeg*
-             (run-constraints xcs)
-             (run-constraints* (next xs) cs ws)) a)
+            (run-constraints xcs)
+            (run-constraints* (next xs) cs ws)) a)
           ((run-constraints* (next xs) cs ws) a))))))
 
 ;; TODO: we've hard coded finite domains here
@@ -2352,11 +2158,11 @@
 
 (defn enforce-constraints [x]
   (all
-    (force-ans x)
-    (fn [a]
-      (let [constrained (enforceable-constrained a)]
-        (verify-all-bound a constrained)
-        ((onceo (force-ans constrained)) a)))))
+   (force-ans x)
+   (fn [a]
+     (let [constrained (enforceable-constrained a)]
+       (verify-all-bound a constrained)
+       ((onceo (force-ans constrained)) a)))))
 
 (defn reify-constraints [v r a]
   (let [cs  (:cs  a)
@@ -2371,18 +2177,17 @@
 
 (defn reifyg [x]
   (all
-    (enforce-constraints x)
-    (fn [a]
-      (let [v (walk* a x)
-            r (-reify* (with-meta empty-s (meta a)) v)]
-        (if (zero? (count r))
-          (choice v empty-f)
-          (let [v (walk* r v)]
-            (reify-constraints v r a)))))))
+   (enforce-constraints x)
+   (fn [a]
+     (let [v (walk* a x)
+           r (-reify* (with-meta empty-s (meta a)) v)]
+       (if (zero? (count r))
+         (choice v empty-f)
+         (let [v (walk* r v)]
+           (reify-constraints v r a)))))))
 
 
 (defn cgoal [c]
-  ;(trace c)
   (reify
     clojure.lang.IFn
     (invoke [_ a]
@@ -2402,7 +2207,6 @@
 
 (defn get-dom-fd
   [a x]
-  ;(trace x)
   (if (lvar? x)
     (get-dom a x ::fd)
     x))
@@ -2411,13 +2215,13 @@
   [a vars & body]
   (let [get-var-dom (fn [a [v b]]
                       `(~b (get-dom-fd ~a ~v)))]
-    `(let [~@(mapcat (partial get-var-dom a) (partition 2 vars))]
-       ~@body)))
+   `(let [~@(mapcat (partial get-var-dom a) (partition 2 vars))]
+      ~@body)))
 
 (defn sort-by-member-count [a]
   (fn [x y]
     (let-dom a [x dx y dy]
-             (< (-member-count dx) (-member-count dy)))))
+      (< (-member-count dx) (-member-count dy)))))
 
 (defn sort-by-strategy [v x a]
   (case (-> x meta ::strategy)
@@ -2426,20 +2230,19 @@
     v))
 
 ;; TODO: handle all Clojure tree types
-(extend-protocol IForceRankAnswerTerm
+(extend-protocol IForceAnswerTerm
   nil
-  (-force-rank-ans [v x rank] s#)
+  (-force-ans [v x] s#)
 
   Object
-  (-force-rank-ans [v x rank]
+  (-force-ans [v x]
     (if (lvar? x)
       (ext-run-csg x v)
       s#))
 
   clojure.lang.Sequential
-  (-force-rank-ans [v x rank]
+  (-force-ans [v x]
     (letfn [(loop [ys]
-              ;(trace ys)
               (if ys
                 (all
                   (force-ans (first ys))
@@ -2451,7 +2254,7 @@
       (loop (seq v))))
 
   clojure.lang.IPersistentMap
-  (-force-rank-ans [v x rank]
+  (-force-ans [v x]
     (letfn [(loop [ys]
               (if ys
                 (all
@@ -2461,27 +2264,24 @@
       (loop (seq v))))
 
   LCons
-  (-force-rank-ans [v x rank]
+  (-force-ans [v x]
     (letfn [(loop [ys]
               (all
-                (force-ans (lfirst ys))
-                (if (lcons? (lnext ys))
-                  (loop (lnext ys))
-                  s#)))]
+               (force-ans (lfirst ys))
+               (if (lcons? (lnext ys))
+                 (loop (lnext ys))
+                 s#)))]
       (loop v))))
 
 (defn force-ans [x]
   (fn [a]
-    ((let [v (walk a x)
-           rank (-> (:crank a) (get x))
-           ;rank 0
-           ]
+    ((let [v (walk a x)]
        (if (lvar? v)
-         (-force-rank-ans (get-dom-fd a x) v rank)
+         (-force-ans (get-dom-fd a x) v)
          (let [x (root-var a x)]
            (if (sequential? v)
-             (-force-rank-ans (sort-by-strategy v x a) x rank)
-             (-force-rank-ans v x rank))))) a)))
+             (-force-ans (sort-by-strategy v x a) x)
+             (-force-ans v x))))) a)))
 
 (defn distribute [v* strategy]
   (fn [a]
@@ -2493,15 +2293,15 @@
 (defn disunify
   ([s u v] (disunify s u v {:prefixc {}}))
   ([s u v cs]
-   (if (identical? u v)
-     cs
-     (let [u (walk s u)
-           v (walk s v)]
-       (if (identical? u v)
-         cs
-         (if (and (not (lvar? u)) (lvar? v))
-           (-disunify-terms v u s cs)
-           (-disunify-terms u v s cs)))))))
+     (if (identical? u v)
+       cs
+       (let [u (walk s u)
+             v (walk s v)]
+         (if (identical? u v)
+           cs
+           (if (and (not (lvar? u)) (lvar? v))
+             (-disunify-terms v u s cs)
+             (-disunify-terms u v s cs)))))))
 
 (extend-protocol IDisunifyTerms
   nil
@@ -2530,7 +2330,7 @@
           (if (lvar? u)
             (disunify s u () cs)
             nil)))
-
+      
       (lcons? v)
       (loop [u u v (seq v) cs cs]
         (if (lvar? u)
@@ -2544,7 +2344,7 @@
               (recur (lnext u) (lnext v) cs)
               nil)
             :else nil)))
-
+      
       :else nil))
 
   clojure.lang.Sequential
@@ -2582,20 +2382,20 @@
       nil)))
 
 #_(defn prefix-subsumes? [p pp]
-    (let [s (-> p meta :s)
-          sp (reduce (fn [s [lhs rhs]]
-                       (unify s lhs rhs))
-                     s pp)]
-      (when sp
-        (identical? s sp))))
+  (let [s (-> p meta :s)
+        sp (reduce (fn [s [lhs rhs]]
+                     (unify s lhs rhs))
+                   s pp)]
+    (when sp
+      (identical? s sp))))
 
 (defn recover-vars-from-term [x]
   (let [r (atom #{})]
     (walk-term x
-               (fn [x]
-                 (if (lvar? x)
-                   (do (swap! r conj x) x)
-                   x)))
+      (fn [x]
+        (if (lvar? x)
+          (do (swap! r conj x) x)
+          x)))
     @r))
 
 (defn recover-vars [p]
@@ -2603,8 +2403,8 @@
     (if p
       (let [[u v] (first p)]
         (recur (next p)
-               (clojure.set/union
-                 r (recover-vars-from-term u) (recover-vars-from-term v))))
+          (clojure.set/union
+            r (recover-vars-from-term u) (recover-vars-from-term v))))
       r)))
 
 (declare normalize-store ground-term?)
@@ -2620,11 +2420,11 @@
           (let [p (loop [sp (seq p) p p]
                     (if sp
                       (let [[x v] (first sp)
-                            ;; TODO: this seems expensive to walk* both sides
-                            ;; and run an equality test there must be a better
-                            ;; way - David
-                            xv (walk* s x)
-                            vv (walk* s v)]
+                             ;; TODO: this seems expensive to walk* both sides
+                             ;; and run an equality test there must be a better
+                             ;; way - David
+                             xv (walk* s x)
+                             vv (walk* s v)]
                         (cond
                           (= xv vv) (recur (next sp) (dissoc p x))
                           (nil? (unify s xv vv)) nil
@@ -2673,24 +2473,24 @@
         a))))
 
 (defne distincto
-       "A relation which guarantees no element of l will unify
-        with another element of l."
-       [l]
-       ([()])
-       ([[h]])
-       ([[h0 h1 . t]]
-         (!= h0 h1)
-         (distincto (lcons h0 t))
-         (distincto (lcons h1 t))))
+  "A relation which guarantees no element of l will unify
+   with another element of l."
+  [l]
+  ([()])
+  ([[h]])
+  ([[h0 h1 . t]]
+     (!= h0 h1)
+     (distincto (lcons h0 t))
+     (distincto (lcons h1 t))))
 
 (defne rembero
-       "A relation between l and o where x is removed from
-        l exactly one time."
-       [x l o]
-       ([_ [x . xs] xs])
-       ([_ [y . ys] [y . zs]]
-         (!= y x)
-         (rembero x ys zs)))
+  "A relation between l and o where x is removed from
+   l exactly one time."
+  [x l o]
+  ([_ [x . xs] xs])
+  ([_ [y . ys] [y . zs]]
+     (!= y x)
+     (rembero x ys zs)))
 
 ;; =============================================================================
 ;; Partial Maps
@@ -2704,7 +2504,7 @@
             vf (get v kf ::not-found)]
         (if (= vf ::not-found)
           nil
-          (let [uf (get u kf)
+          (let [uf (get u kf) 
                 vf (walk s vf)]
             (if (lvar? vf)
               (recur (next ks) ((featurec vf uf) s))
@@ -2796,12 +2596,12 @@
               (if (lvar? x)
                 (throw fk)
                 (walk-term x
-                           (fn [x]
-                             (let [x (walk s x)]
-                               (cond
-                                 (lvar? x) (throw fk)
-                                 (tree-term? x) (-ground-term? x s)
-                                 :else x)))))))]
+                  (fn [x]
+                    (let [x (walk s x)]
+                      (cond
+                        (lvar? x) (throw fk)
+                        (tree-term? x) (-ground-term? x s)
+                        :else x)))))))]
     (try
       (-ground-term? x s)
       true
@@ -2832,7 +2632,7 @@
                        ~'clojure.lang.IFn
                        (~'invoke [_# a#]
                          (let [[~@args :as args#] (map #(clojure.core.logic/walk* a# %) ~args)
-                               test# (do ~@body)]
+                                test# (do ~@body)]
                            (when test#
                              ((clojure.core.logic/remcg this#) a#))))
                        clojure.core.logic.protocols/IRunnable
@@ -2857,35 +2657,35 @@
 (defn -predc
   ([x p] (-predc x p p))
   ([x p pform]
-   (reify
-     IConstraintStep
-     (-step [this s]
-       (reify
-         clojure.lang.IFn
-         (invoke [_ s]
-           (let [x (walk s x)]
-             (when (p x)
-               ((remcg this) s))))
-         IRunnable
-         (-runnable? [_]
-           (not (lvar? (walk s x))))))
-     IConstraintOp
-     (-rator [_] (if (seq? pform)
-                   `(predc ~pform)
-                   `predc))
-     (-rands [_] [x])
-     IReifiableConstraint
-     (-reifyc [c v r s]
-       (if (and (not= p pform) (fn? pform))
-         (pform c v r s)
-         pform))
-     IConstraintWatchedStores
-     (-watched-stores [this] #{::subst}))))
+     (reify
+       IConstraintStep
+       (-step [this s]
+         (reify
+           clojure.lang.IFn
+           (invoke [_ s]
+             (let [x (walk s x)]
+               (when (p x)
+                 ((remcg this) s))))
+           IRunnable
+           (-runnable? [_]
+             (not (lvar? (walk s x))))))
+       IConstraintOp
+       (-rator [_] (if (seq? pform)
+                    `(predc ~pform)
+                    `predc))
+       (-rands [_] [x])
+       IReifiableConstraint
+       (-reifyc [c v r s]
+         (if (and (not= p pform) (fn? pform))
+           (pform c v r s)
+           pform))
+       IConstraintWatchedStores
+       (-watched-stores [this] #{::subst}))))
 
 (defn predc
   ([x p] (predc x p p))
   ([x p pform]
-   (cgoal (-predc x p pform))))
+     (cgoal (-predc x p pform))))
 
 ;; =============================================================================
 ;; Negation as failure
@@ -2898,27 +2698,27 @@
 
 (defn -nafc
   ([c args]
-   (reify
-     IConstraintStep
-     (-step [this s]
-       (reify
-         clojure.lang.IFn
-         (invoke [_ s]
-           (when-not (tramp ((apply c args) s))
-             ((remcg this) s)))
-         IRunnable
-         (-runnable? [_]
-           (every? #(ground-term? % s) args))))
-     IConstraintOp
-     (-rator [_]
-       `nafc)
-     (-rands [_]
-       (vec (concat [c] args)))
-     IReifiableConstraint
-     (-reifyc [_ v r s]
-       `(nafc ~c ~@(-reify s args r)))
-     IConstraintWatchedStores
-     (-watched-stores [this] #{::subst}))))
+    (reify
+      IConstraintStep
+      (-step [this s]
+        (reify
+           clojure.lang.IFn
+           (invoke [_ s]
+             (when-not (tramp ((apply c args) s))
+               ((remcg this) s)))
+           IRunnable
+           (-runnable? [_]
+             (every? #(ground-term? % s) args))))
+      IConstraintOp
+      (-rator [_]
+        `nafc)
+      (-rands [_]
+        (vec (concat [c] args)))
+      IReifiableConstraint
+      (-reifyc [_ v r s]
+        `(nafc ~c ~@(-reify s args r)))
+      IConstraintWatchedStores
+      (-watched-stores [this] #{::subst}))))
 
 (defn nafc
   "EXPERIMENTAL: negation as failure constraint. All arguments to the goal c
@@ -2965,37 +2765,37 @@
 
 (defn -conjo
   ([coll args out]
-   (reify
-     IConstraintStep
-     (-step [this s]
-       (reify
-         clojure.lang.IFn
-         (invoke [_ s]
-           (let [coll (walk s coll)
-                 args (walk s args)]
-             (if-not (lvar? coll)
-               ((composeg
-                  (== (apply conj coll args) out)
-                  (remcg this)) s)
-               (let [out  (walk s out)
-                     outv (apply (-joncf out) out args)]
-                 (if-not (= outv ::failed)
-                   ((composeg
-                      (== outv coll)
-                      (remcg this)) s))))))
-         IRunnable
-         (-runnable? [_]
-           (= (count (filter #(ground-term? % s) [coll args out])) 2))))
-     IConstraintOp
-     (-rator [_]
-       `conjo)
-     (-rands [_]
-       (vec (concat [coll] args [out])))
-     IReifiableConstraint
-     (-reifyc [_ v r s]
-       `(conjo ~coll ~@(-reify s (concat args [out]) r)))
-     IConstraintWatchedStores
-     (-watched-stores [this] #{::subst}))))
+    (reify
+      IConstraintStep
+      (-step [this s]
+        (reify
+          clojure.lang.IFn
+          (invoke [_ s]
+            (let [coll (walk s coll)
+                  args (walk s args)]
+              (if-not (lvar? coll)
+                ((composeg
+                   (== (apply conj coll args) out)
+                   (remcg this)) s)
+                (let [out  (walk s out)
+                      outv (apply (-joncf out) out args)]
+                  (if-not (= outv ::failed)
+                    ((composeg
+                       (== outv coll)
+                       (remcg this)) s))))))
+          IRunnable
+          (-runnable? [_]
+            (= (count (filter #(ground-term? % s) [coll args out])) 2))))
+      IConstraintOp
+      (-rator [_]
+        `conjo)
+      (-rands [_]
+        (vec (concat [coll] args [out])))
+      IReifiableConstraint
+      (-reifyc [_ v r s]
+        `(conjo ~coll ~@(-reify s (concat args [out]) r)))
+      IConstraintWatchedStores
+      (-watched-stores [this] #{::subst}))))
 
 (defn conjo
   "A constraint version of conj"
@@ -3041,56 +2841,53 @@
 (defn -fixc
   ([x f reifier] (-fixc x f nil reifier))
   ([x f runnable reifier]
-   (reify
-     IConstraintStep
-     (-step [this s]
-       (let [xv (walk s x)]
-         (reify
-           clojure.lang.IFn
-           (invoke [_ s]
-             ((composeg (f xv s reifier) (remcg this)) s))
-           IRunnable
-           (-runnable? [_]
-             (if (fn? runnable)
-               (runnable x s)
-               (not (lvar? xv)))))))
-     IConstraintOp
-     (-rator [_] `fixc)
-     (-rands [_] (if (vector? x) x [x]))
-     IReifiableConstraint
-     (-reifyc [c v r s]
-       (if (fn? reifier)
-         (reifier c x v r s)
-         (let [x (walk* r x)]
-           `(fixc ~x ~reifier))))
-     IConstraintWatchedStores
-     (-watched-stores [this] #{::subst}))))
+     (reify
+       IConstraintStep
+       (-step [this s]
+         (let [xv (walk s x)]
+           (reify
+             clojure.lang.IFn
+             (invoke [_ s]
+               ((composeg (f xv s reifier) (remcg this)) s))
+             IRunnable
+             (-runnable? [_]
+               (if (fn? runnable)
+                 (runnable x s)
+                 (not (lvar? xv)))))))
+       IConstraintOp
+       (-rator [_] `fixc)
+       (-rands [_] (if (vector? x) x [x]))
+       IReifiableConstraint
+       (-reifyc [c v r s]
+         (if (fn? reifier)
+           (reifier c x v r s)
+           (let [x (walk* r x)]
+             `(fixc ~x ~reifier))))
+       IConstraintWatchedStores
+       (-watched-stores [this] #{::subst}))))
 
 (defn fixc
   ([x f reifier] (fixc x f nil reifier))
   ([x f runnable reifier]
-   (cgoal (-fixc x f runnable reifier))))
+     (cgoal (-fixc x f runnable reifier))))
 
 (defn treec [x fc reifier]
   (fixc x
-        (fn loop [t a reifier]
-          (if (tree-term? t)
-            (composeg*
-              (fc t)
-              (constrain-tree t
-                              (fn [t a] ((fixc t loop reifier) a))))
-            (fc t)))
-        reifier))
+    (fn loop [t a reifier]
+      (if (tree-term? t)
+        (composeg*
+          (fc t)
+          (constrain-tree t
+            (fn [t a] ((fixc t loop reifier) a))))
+        (fc t)))
+    reifier))
 
 (defn seqc [v]
   (fixc v
-        (fn [t _ _]
-          (cond
-            (sequential? t) succeed
-            (lcons? t) (seqc (lnext t))
-            :else fail))
-        (fn [_ v _ r a]
-          `(seqc ~(-reify a v r)))))
-
-
-
+    (fn [t _ _]
+      (cond
+        (sequential? t) succeed
+        (lcons? t) (seqc (lnext t))
+        :else fail))
+    (fn [_ v _ r a]
+      `(seqc ~(-reify a v r)))))
